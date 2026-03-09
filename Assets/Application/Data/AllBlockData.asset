@@ -1,0 +1,63 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0872b901d5f139143a855ebabeab49cc, type: 3}
+  m_Name: AllBlockData
+  m_EditorClassIdentifier: 
+  blockList:
+  - blockID: 0
+    blockName: '#00'
+    blockPrefab: {fileID: 5063883653916336265, guid: 73dfaafb3e3cab04aa6b42fb6e793cd2, type: 3}
+    tier: 1
+    shapeData: 01010000010100000000000000000000
+    blockColor: {r: 1, g: 0.10849059, b: 0.10849059, a: 1}
+  - blockID: 1
+    blockName: '#01'
+    blockPrefab: {fileID: 5063883653916336265, guid: 73dfaafb3e3cab04aa6b42fb6e793cd2, type: 3}
+    tier: 1
+    shapeData: 01010101000000000000000000000000
+    blockColor: {r: 0.10849059, g: 0.42833096, b: 1, a: 1}
+  - blockID: 2
+    blockName: '#02'
+    blockPrefab: {fileID: 5063883653916336265, guid: 73dfaafb3e3cab04aa6b42fb6e793cd2, type: 3}
+    tier: 1
+    shapeData: 01000000010100000001000000000000
+    blockColor: {r: 1, g: 0.9560447, b: 0.3254717, a: 1}
+  - blockID: 3
+    blockName: '#03'
+    blockPrefab: {fileID: 5063883653916336265, guid: 73dfaafb3e3cab04aa6b42fb6e793cd2, type: 3}
+    tier: 1
+    shapeData: 01010100010000000000000000000000
+    blockColor: {r: 0.990566, g: 0.5859898, b: 0.23829652, a: 1}
+  - blockID: 4
+    blockName: '#04'
+    blockPrefab: {fileID: 5063883653916336265, guid: 73dfaafb3e3cab04aa6b42fb6e793cd2, type: 3}
+    tier: 1
+    shapeData: 01010100000100000000000000000000
+    blockColor: {r: 0.8468467, g: 0.3443396, b: 1, a: 1}
+  - blockID: 5
+    blockName: '#05'
+    blockPrefab: {fileID: 5063883653916336265, guid: 73dfaafb3e3cab04aa6b42fb6e793cd2, type: 3}
+    tier: 1
+    shapeData: 00010000010100000100000000000000
+    blockColor: {r: 0.5996652, g: 0.9716981, b: 0.45376468, a: 1}
+  - blockID: 6
+    blockName: '#06'
+    blockPrefab: {fileID: 5063883653916336265, guid: 73dfaafb3e3cab04aa6b42fb6e793cd2, type: 3}
+    tier: 1
+    shapeData: 01010100000001000000000000000000
+    blockColor: {r: 0.7777251, g: 0.31305623, b: 0.990566, a: 1}
+  - blockID: 7
+    blockName: '#07'
+    blockPrefab: {fileID: 5063883653916336265, guid: 73dfaafb3e3cab04aa6b42fb6e793cd2, type: 3}
+    tier: 1
+    shapeData: 01010100000001000000000000000000
+    blockColor: {r: 0.7777251, g: 0.31305623, b: 0.990566, a: 1}
