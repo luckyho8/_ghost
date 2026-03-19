@@ -48,6 +48,8 @@ public class ItemManager : MonoBehaviour
 
     [Header("5. Gravity Item")]
     [SerializeField] private float gravitySettleDelay = 0.1f;
+    [Tooltip("아이템 1회 사용 시 각 큐브가 내려가는 최대 칸 수. 1=1줄 압축, 3=3줄 압축")]
+    [SerializeField] private int gravityDropCells = 1;
     public Button btn_Gravity;
 
     [Header("6. Ghost Piece (1회용 발동)")]
@@ -150,24 +152,25 @@ public class ItemManager : MonoBehaviour
 
     public void UseTimeStopItem()
     {
-        if (timeStopDuration <= 0f) return;
-        Debug.Log("아이템 사용됨");
+        if (gameManager == null || timeStopDuration <= 0f) return;
+        gameManager.StartCoroutine(gameManager.DoTimeStop(timeStopDuration));
     }
 
     public void UseLevelDownItem()
     {
-        if (levelDecreaseAmount < 0 || minLevelLimit < 0) return;
-        Debug.Log("아이템 사용됨");
+        if (gameManager == null || levelDecreaseAmount < 0 || minLevelLimit < 0) return;
+        gameManager.DecreaseLevel(levelDecreaseAmount, minLevelLimit);
     }
 
     public void UseRerollItem()
     {
-        Debug.Log("아이템 사용됨");
+        if (gameManager == null) return;
+        gameManager.ReplaceCurrentBlockWith(targetIBlockIndex);
     }
 
     public void UseGravityItem()
     {
-        if (gravitySettleDelay <= 0f) return;
-        Debug.Log("아이템 사용됨");
+        if (gameManager == null || gravitySettleDelay <= 0f) return;
+        gameManager.StartCoroutine(gameManager.GravityCompression(gravitySettleDelay, Mathf.Max(1, gravityDropCells)));
     }
 }

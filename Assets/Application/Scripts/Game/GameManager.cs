@@ -12,7 +12,7 @@ public class GameManager : MonoBehaviour
     private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
     private static readonly int ColorId = Shader.PropertyToID("_Color");
 
-    private const int MIN_GRID_Z = -19;
+    private const int MIN_GRID_Z = -12;
 
     [Header("Game Settings (Test Friendly)")]
     [Tooltip("기본 낙하 속도 (한 칸 이동까지의 초)")]
@@ -32,11 +32,11 @@ public class GameManager : MonoBehaviour
     [Tooltip("블록 생성 위치")]
     public Transform spawnPoint;
 
-    [Tooltip("다음 블록 대기 위치")]
-    [SerializeField] private Transform nextPoint;
+    [Tooltip("다음 블록 대기 위치 (01=다음, 04=먼 미래)")]
+    [SerializeField] private Transform[] nextPoints = new Transform[4];
 
-    private GameObject nextBlockObject;
-    private BlockDataContents nextBlockData;
+    private List<BlockDataContents> nextQueue = new List<BlockDataContents>();
+    private List<GameObject> nextQueueObjects = new List<GameObject>();
 
     [Header("Grid Bounds (Side_Wall)")]
     [Tooltip("그리드 X 최소 (좌측 벽)")]
@@ -68,6 +68,33 @@ public class GameManager : MonoBehaviour
     [Header("Item (Ghost 등)")]
     [SerializeField] private ItemManager itemManager;
 
+    // ── 연출: FX 프리팹 슬롯 ──────────────────────────────────────────────
+    // 파티클 프리팹은 흰색(1,1,1) 기준으로 제작하면 코드가 런타임에 색상을 주입합니다.
+    [Header("연출 - FX 프리팹 (추후 파티클 연결)")]
+    [Tooltip("블록을 내려놓을 때 발생하는 파티클 (블록 색상 자동 적용)")]
+    [SerializeField] private GameObject fx_BlockPlace;
+
+    [Tooltip("완료 예고 줄 하이라이트 파티클 (완료 색상 자동 적용)")]
+    [SerializeField] private GameObject fx_LineHighlight;
+
+    [Tooltip("줄 클리어 순간 발생하는 파티클 (클리어 색상 자동 적용)")]
+    [SerializeField] private GameObject fx_LineClear;
+
+    [Tooltip("셀레브레이션 다다닥 연출에 사용할 큐브 프리팹. 비워두면 기본 큐브로 대체됩니다.")]
+    [SerializeField] private GameObject celebrationCubePrefab;
+
+    [Tooltip("콤보 발생 시 파티클 (추후 연결)")]
+    [SerializeField] private GameObject fx_Combo;
+
+    [Header("연출 - 셀레브레이션 타이밍")]
+    [Tooltip("다다닥 큐브 스폰 간격 (초)")]
+    [SerializeField] private float celebrationSpawnInterval = 0.04f;
+    [Tooltip("다다닥 큐브 축소 시작 간격 (초)")]
+    [SerializeField] private float celebrationShrinkInterval = 0.03f;
+    [Tooltip("큐브 하나가 축소되어 사라지는 시간 (초)")]
+    [SerializeField] private float celebrationShrinkDuration = 0.12f;
+    // ─────────────────────────────────────────────────────────────────────
+
     private float elapsedTime;
     private float gaugeTimer;
     private float currentFallSpeed;
@@ -75,12 +102,24 @@ public class GameManager : MonoBehaviour
     private int currentScore;
     private int currentCombo;
     private float currentBlockSpawnTime;
+    private bool isTimeStopped = false;
 
     [Header("Level System")]
     public int currentLevel = 1;
 
     private HashSet<Vector2Int> occupiedCells = new HashSet<Vector2Int>();
     private Dictionary<Vector2Int, Transform> cellToCube = new Dictionary<Vector2Int, Transform>();
+
+    // 각 셀의 원본 색상 (하이라이트 복원 및 셀레브레이션 색상에 사용)
+    private Dictionary<Vector2Int, Color> cellBaseColors = new Dictionary<Vector2Int, Color>();
+
+    // 현재 하이라이트된 셀과 복원용 원본 색상
+    private List<int> highlightedRows = new List<int>();
+    private Dictionary<Vector2Int, Color> highlightedOriginalColors = new Dictionary<Vector2Int, Color>();
+
+    // 마지막으로 고정된 블록의 색상 (셀레브레이션에 사용)
+    private Color lastFrozenBlockColor = Color.white;
+
     private FallingBlock currentBlock;
     private bool gameRunning = true;
     private GameObject ghostBlockRoot;
@@ -164,7 +203,7 @@ public class GameManager : MonoBehaviour
         UpdateTimeUI();
         UpdateGaugeAndSpeedUp(dt);
 
-        if (currentBlock != null)
+        if (currentBlock != null && !isTimeStopped)
         {
             fallAccumulator += dt;
             if (fallAccumulator >= currentFallSpeed)
@@ -172,6 +211,8 @@ public class GameManager : MonoBehaviour
                 fallAccumulator -= currentFallSpeed;
                 if (!currentBlock.TryMoveDown())
                     FreezeCurrentBlock();
+                else
+                    UpdateLinePreview();
             }
         }
 
@@ -237,12 +278,14 @@ public class GameManager : MonoBehaviour
     {
         if (currentBlock != null) currentBlock.TryMoveLeft();
         if (itemManager != null && itemManager.isGhostActive && currentBlock != null) UpdateGhostPosition();
+        UpdateLinePreview();
     }
 
     public void MoveRight()
     {
         if (currentBlock != null) currentBlock.TryMoveRight();
         if (itemManager != null && itemManager.isGhostActive && currentBlock != null) UpdateGhostPosition();
+        UpdateLinePreview();
     }
 
     public void MoveDown()
@@ -250,12 +293,14 @@ public class GameManager : MonoBehaviour
         if (currentBlock != null && !currentBlock.TryMoveDown())
             FreezeCurrentBlock();
         if (itemManager != null && itemManager.isGhostActive && currentBlock != null) UpdateGhostPosition();
+        UpdateLinePreview();
     }
 
     public void Rotate()
     {
         if (currentBlock != null) currentBlock.TryRotateWithWallKick();
         if (itemManager != null && itemManager.isGhostActive && currentBlock != null) UpdateGhostPosition();
+        UpdateLinePreview();
     }
 
     public void HardDrop()
@@ -323,6 +368,7 @@ public class GameManager : MonoBehaviour
         if (t != null) Destroy(t.gameObject);
         cellToCube.Remove(cell);
         occupiedCells.Remove(cell);
+        cellBaseColors.Remove(cell);
         return true;
     }
 
@@ -383,34 +429,48 @@ public class GameManager : MonoBehaviour
         if (allBlockData == null || allBlockData.blockList == null || allBlockData.blockList.Count == 0 || spawnPoint == null)
             return;
 
-        int pivotX = Mathf.RoundToInt(spawnPoint.position.x);
-        int pivotY = Mathf.RoundToInt(spawnPoint.position.y);
+        if (nextQueue.Count == 0)
+            InitNextQueue();
+
+        // 큐 앞에서 꺼내 현재 블록으로 스폰 (X축 자동 센터링)
+        var spawnData = nextQueue[0];
+        var spawnObj = nextQueueObjects[0];
+        nextQueue.RemoveAt(0);
+        nextQueueObjects.RemoveAt(0);
+
+        int pivotX = Mathf.RoundToInt(spawnPoint.position.x) - GetCenterOffsetX(spawnData);
         int pivotZ = Mathf.RoundToInt(spawnPoint.position.z);
+        spawnObj.transform.position = new Vector3(pivotX, spawnPoint.position.y, spawnPoint.position.z);
+        spawnObj.transform.rotation = spawnPoint.rotation;
+        currentBlock = spawnObj.AddComponent<FallingBlock>();
+        currentBlock.Init(this, spawnData, pivotX, pivotZ);
 
-        if (nextBlockObject == null)
+        // 남은 3개를 한 칸씩 앞으로 이동 (X축 센터링 유지)
+        for (int i = 0; i < nextQueueObjects.Count; i++)
         {
-            BlockDataContents data = GetRandomBlockData();
-            if (data == null) return;
-            GameObject container = CreateBlockContainer(data, spawnPoint.position, spawnPoint.rotation);
-            if (container == null) return;
-            currentBlock = container.AddComponent<FallingBlock>();
-            currentBlock.Init(this, data, pivotX, pivotZ);
-        }
-        else
-        {
-            nextBlockObject.transform.position = spawnPoint.position;
-            nextBlockObject.transform.rotation = spawnPoint.rotation;
-            currentBlock = nextBlockObject.AddComponent<FallingBlock>();
-            currentBlock.Init(this, nextBlockData, pivotX, pivotZ);
-            nextBlockObject = null;
+            if (nextQueueObjects[i] != null && i < nextPoints.Length && nextPoints[i] != null)
+            {
+                Vector3 pos = nextPoints[i].position;
+                pos.x -= GetCenterOffsetX(nextQueue[i]);
+                nextQueueObjects[i].transform.position = pos;
+                nextQueueObjects[i].transform.rotation = nextPoints[i].rotation;
+            }
         }
 
-        if (nextPoint != null)
+        // 맨 뒤(04번 슬롯)에 새 블록 추가 (X축 센터링)
+        var newData = GetRandomBlockData();
+        nextQueue.Add(newData);
+        int lastIdx = nextQueue.Count - 1;
+        GameObject newObj = null;
+        if (lastIdx < nextPoints.Length && nextPoints[lastIdx] != null)
         {
-            nextBlockData = GetRandomBlockData();
-            if (nextBlockData != null)
-                nextBlockObject = CreateBlockContainer(nextBlockData, nextPoint.position, nextPoint.rotation);
+            Vector3 newPos = nextPoints[lastIdx].position;
+            newPos.x -= GetCenterOffsetX(newData);
+            newObj = CreateBlockContainer(newData, newPos, nextPoints[lastIdx].rotation);
         }
+        nextQueueObjects.Add(newObj);
+
+        UpdateNextQueueVisibility();
 
         fallAccumulator = 0f;
         currentBlockSpawnTime = Time.time;
@@ -422,9 +482,69 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    private void InitNextQueue()
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            var data = GetRandomBlockData();
+            nextQueue.Add(data);
+            GameObject obj = null;
+            if (i < nextPoints.Length && nextPoints[i] != null)
+            {
+                Vector3 pos = nextPoints[i].position;
+                pos.x -= GetCenterOffsetX(data);
+                obj = CreateBlockContainer(data, pos, nextPoints[i].rotation);
+            }
+            nextQueueObjects.Add(obj);
+        }
+        UpdateNextQueueVisibility();
+    }
+
+    private void UpdateNextQueueVisibility()
+    {
+        int visible = GetVisibleNextCount();
+        for (int i = 0; i < nextQueueObjects.Count; i++)
+        {
+            if (nextQueueObjects[i] != null)
+                nextQueueObjects[i].SetActive(i < visible);
+        }
+    }
+
+    /// <summary>레벨에 따라 넥스트 큐 표시 개수: 1~3레벨=4개, 4~5=3개, 6~7=2개, 8+=1개</summary>
+    private int GetVisibleNextCount()
+    {
+        if (currentLevel <= 3) return 4;
+        if (currentLevel <= 5) return 3;
+        if (currentLevel <= 7) return 2;
+        return 1;
+    }
+
+    /// <summary>블록의 실제 셀 범위를 계산해 X축 중앙 정렬에 필요한 오프셋 반환. 피봇 위치 무관하게 항상 중앙 스폰.</summary>
+    private int GetCenterOffsetX(BlockDataContents data)
+    {
+        if (data?.shapeData == null) return 0;
+        int minCol = int.MaxValue, maxCol = int.MinValue;
+        for (int i = 0; i < 16 && i < data.shapeData.Length; i++)
+        {
+            if (!data.shapeData[i]) continue;
+            int col = i % 4;
+            if (col < minCol) minCol = col;
+            if (col > maxCol) maxCol = col;
+        }
+        if (minCol == int.MaxValue) return 0;
+        return Mathf.RoundToInt((minCol + maxCol) / 2f);
+    }
+
     public void FreezeCurrentBlock()
     {
         if (currentBlock == null) return;
+
+        // 셀레브레이션 색상 보존 + 하이라이트 해제
+        lastFrozenBlockColor = currentBlock.BlockColor;
+        ClearLinePreview();
+
+        // 블록 내려놓기 파티클 (추후 연결)
+        SpawnParticleWithColor(fx_BlockPlace, currentBlock.transform.position, lastFrozenBlockColor);
 
         float placementTime = Time.time - currentBlockSpawnTime;
         int placementScore = placementTime <= 0.5f ? 300 : placementTime <= 0.8f ? 200 : placementTime <= 1.2f ? 150 : 100;
@@ -439,6 +559,7 @@ public class GameManager : MonoBehaviour
 
     private void RegisterFrozenBlockToGrid(FallingBlock block)
     {
+        Color blockColor = block.BlockColor;
         Transform container = block.transform;
         var children = new List<Transform>();
         for (int i = 0; i < container.childCount; i++)
@@ -452,6 +573,7 @@ public class GameManager : MonoBehaviour
             var cell = new Vector2Int(gx, gz);
             occupiedCells.Add(cell);
             cellToCube[cell] = cube;
+            cellBaseColors[cell] = blockColor;
             cube.SetParent(null);
         }
     }
@@ -459,34 +581,61 @@ public class GameManager : MonoBehaviour
     private System.Collections.IEnumerator LineClearThenSpawn()
     {
         yield return new WaitForSeconds(0.1f);
+        var clearedRows = ClearFullLines();
+        if (clearedRows.Count > 0)
+            yield return StartCoroutine(CelebrationEffect(clearedRows));
+        SpawnBlock();
+    }
 
-        List<int> fullLines = new List<int>();
+    /// <summary>꽉 찬 줄을 탐색·파괴·하강 처리. 클리어된 줄의 (Z좌표, 색상, Y높이) 목록 반환.</summary>
+    private List<(int z, Color color, float y)> ClearFullLines()
+    {
+        var fullLines = new List<int>();
         for (int z = gridMinZ; z <= gridMaxZ; z++)
         {
             bool full = true;
             for (int x = gridMinX; x <= gridMaxX; x++)
             {
-                if (!occupiedCells.Contains(new Vector2Int(x, z)))
-                {
-                    full = false;
-                    break;
-                }
+                if (!occupiedCells.Contains(new Vector2Int(x, z))) { full = false; break; }
             }
             if (full) fullLines.Add(z);
         }
+
+        var clearedRows = new List<(int z, Color color, float y)>();
 
         if (fullLines.Count > 0)
         {
             foreach (int z in fullLines)
             {
+                // 클리어 전 색상과 Y 높이 캡처
+                Color rowColor = lastFrozenBlockColor;
+                float rowY = 0f;
+                for (int x = gridMinX; x <= gridMaxX; x++)
+                {
+                    var sampleCell = new Vector2Int(x, z);
+                    if (cellToCube.TryGetValue(sampleCell, out Transform sample) && sample != null)
+                    {
+                        rowY = sample.position.y;
+                        break;
+                    }
+                }
+                clearedRows.Add((z, rowColor, rowY));
+
+                // 큐브 파괴
                 for (int x = gridMinX; x <= gridMaxX; x++)
                 {
                     var cell = new Vector2Int(x, z);
                     if (cellToCube.TryGetValue(cell, out Transform t))
                     {
-                        if (t != null) Destroy(t.gameObject);
+                        // 클리어 파티클 (추후 연결)
+                        if (t != null)
+                        {
+                            SpawnParticleWithColor(fx_LineClear, t.position, rowColor);
+                            Destroy(t.gameObject);
+                        }
                         cellToCube.Remove(cell);
                         occupiedCells.Remove(cell);
+                        cellBaseColors.Remove(cell);
                     }
                 }
             }
@@ -500,15 +649,14 @@ public class GameManager : MonoBehaviour
             currentScore += lineScore;
             currentScore += currentCombo * 50;
             currentCombo++;
+            UpdateScoreUI();
         }
         else
         {
             currentCombo = 0;
         }
-        if (clearedLineCount > 0)
-            UpdateScoreUI();
 
-        SpawnBlock();
+        return clearedRows;
     }
 
     /// <summary>데이터 주도형: 바닥부터 최상단 Z 순회, 삭제된 줄 수(shiftCount) 누적 후 위쪽 라인만 하강. (라인클리어·폭탄 아이템 등에서 호출)</summary>
@@ -536,13 +684,281 @@ public class GameManager : MonoBehaviour
                 cellToCube.Remove(cell);
                 occupiedCells.Remove(cell);
 
+                Color savedColor = cellBaseColors.TryGetValue(cell, out Color c) ? c : Color.white;
+                cellBaseColors.Remove(cell);
+
                 int newZ = z - shiftCount;
                 var newCell = new Vector2Int(x, newZ);
                 cellToCube[newCell] = t;
                 occupiedCells.Add(newCell);
+                cellBaseColors[newCell] = savedColor;
 
                 t.position = new Vector3(x, t.position.y, newZ);
             }
+        }
+    }
+
+    // --- Item Actions ---
+
+    /// <summary>Time Stop: duration 동안 블록 자동 낙하 중단. 유저 조작은 유지.</summary>
+    public System.Collections.IEnumerator DoTimeStop(float duration)
+    {
+        isTimeStopped = true;
+        yield return new WaitForSeconds(duration);
+        isTimeStopped = false;
+    }
+
+    /// <summary>Level Down: 레벨을 amount만큼 낮추고 낙하 속도 재계산.</summary>
+    public void DecreaseLevel(int amount, int minLevel)
+    {
+        currentLevel = Mathf.Max(currentLevel - amount, minLevel);
+        currentFallSpeed = baseFallSpeed * Mathf.Pow(speedMultiplier, currentLevel - 1);
+        gaugeTimer = 0f;
+        UpdateLevelUI();
+    }
+
+    /// <summary>Reroll: 현재 블록을 파괴하고 지정 인덱스의 블록으로 즉시 교체 스폰.</summary>
+    public void ReplaceCurrentBlockWith(int blockIndex)
+    {
+        if (currentBlock == null || allBlockData == null) return;
+        if (blockIndex < 0 || blockIndex >= allBlockData.blockList.Count) return;
+
+        ClearLinePreview();
+        if (ghostBlockRoot != null) ghostBlockRoot.SetActive(false);
+        Destroy(currentBlock.gameObject);
+        currentBlock = null;
+
+        var data = allBlockData.blockList[blockIndex];
+        int pivotX = Mathf.RoundToInt(spawnPoint.position.x) - GetCenterOffsetX(data);
+        int pivotZ = Mathf.RoundToInt(spawnPoint.position.z);
+
+        var container = CreateBlockContainer(data, new Vector3(pivotX, spawnPoint.position.y, spawnPoint.position.z), spawnPoint.rotation);
+        currentBlock = container.AddComponent<FallingBlock>();
+        currentBlock.Init(this, data, pivotX, pivotZ);
+        fallAccumulator = 0f;
+        currentBlockSpawnTime = Time.time;
+
+        if (itemManager != null && itemManager.isGhostActive)
+        {
+            EnsureGhostRoot();
+            RebuildGhostFromCurrentBlock();
+            ghostBlockRoot.SetActive(true);
+        }
+    }
+
+    /// <summary>Gravity: 아이템 1회 사용. 각 큐브를 최대 dropCells칸만큼 아래로 내려 빈 공간을 압축.</summary>
+    public System.Collections.IEnumerator GravityCompression(float delay, int dropCells = 1)
+    {
+        for (int z = gridMinZ + 1; z <= gridMaxZ; z++)
+        {
+            for (int x = gridMinX; x <= gridMaxX; x++)
+            {
+                var cell = new Vector2Int(x, z);
+                if (!cellToCube.TryGetValue(cell, out Transform t) || t == null) continue;
+
+                int drop = 0;
+                for (int d = 1; d <= dropCells; d++)
+                {
+                    int targetZ = z - d;
+                    if (targetZ < gridMinZ) break;
+                    if (occupiedCells.Contains(new Vector2Int(x, targetZ))) break;
+                    drop = d;
+                }
+                if (drop == 0) continue;
+
+                int newZ = z - drop;
+                cellToCube.Remove(cell);
+                occupiedCells.Remove(cell);
+
+                Color savedColor = cellBaseColors.TryGetValue(cell, out Color c) ? c : Color.white;
+                cellBaseColors.Remove(cell);
+
+                var newCell = new Vector2Int(x, newZ);
+                cellToCube[newCell] = t;
+                occupiedCells.Add(newCell);
+                cellBaseColors[newCell] = savedColor;
+
+                t.position = new Vector3(x, t.position.y, newZ);
+            }
+        }
+        yield return new WaitForSeconds(delay);
+
+        var clearedRows = ClearFullLines();
+        if (clearedRows.Count > 0)
+            yield return StartCoroutine(CelebrationEffect(clearedRows));
+    }
+
+    // ── 라인 완료 예고 하이라이트 ────────────────────────────────────────
+
+    /// <summary>현재 블록을 하드드롭했을 때 완성될 줄을 시뮬레이션해 반환.</summary>
+    private List<int> GetWouldCompleteRows()
+    {
+        if (currentBlock == null) return new List<int>();
+
+        // 하드드롭 위치 계산 (고스트 피스와 동일한 로직)
+        Transform block = currentBlock.transform;
+        Quaternion rot = block.rotation;
+        Vector3 pos = block.position;
+        pos.x = Mathf.RoundToInt(pos.x);
+        pos.y = Mathf.RoundToInt(pos.y);
+        pos.z = Mathf.RoundToInt(pos.z);
+
+        var cells = GetCellsForPose(block, pos, rot);
+        while (AllCellsValid(cells))
+        {
+            pos.z -= 1f;
+            cells = GetCellsForPose(block, pos, rot);
+        }
+        pos.z += 1f;
+        cells = GetCellsForPose(block, pos, rot);
+
+        // 하드드롭 위치에서 완성되는 줄 시뮬레이션
+        var simulated = new HashSet<Vector2Int>(occupiedCells);
+        foreach (var c in cells) simulated.Add(c);
+
+        var result = new List<int>();
+        for (int z = gridMinZ; z <= gridMaxZ; z++)
+        {
+            bool full = true;
+            for (int x = gridMinX; x <= gridMaxX; x++)
+            {
+                if (!simulated.Contains(new Vector2Int(x, z))) { full = false; break; }
+            }
+            if (full) result.Add(z);
+        }
+        return result;
+    }
+
+    /// <summary>완료 예고 하이라이트 갱신. 블록이 이동할 때마다 호출.</summary>
+    private void UpdateLinePreview()
+    {
+        ClearLinePreview();
+        if (currentBlock == null) return;
+
+        var rows = GetWouldCompleteRows();
+        if (rows.Count == 0) return;
+
+        Color highlightColor = currentBlock.BlockColor;
+        highlightedRows = rows;
+
+        foreach (int z in rows)
+        {
+            for (int x = gridMinX; x <= gridMaxX; x++)
+            {
+                var cell = new Vector2Int(x, z);
+                if (!cellToCube.TryGetValue(cell, out Transform t) || t == null) continue;
+
+                // 원본 색상 백업
+                if (cellBaseColors.TryGetValue(cell, out Color orig))
+                    highlightedOriginalColors[cell] = orig;
+
+                // 완료 색상으로 변경
+                ApplyBlockColorToCube(t.gameObject, highlightColor);
+
+                // 하이라이트 파티클 (추후 연결) — 위치당 1회만 스폰하려면 별도 관리 필요
+                // SpawnParticleWithColor(fx_LineHighlight, t.position, highlightColor);
+            }
+        }
+    }
+
+    /// <summary>하이라이트된 줄을 원래 색상으로 복원.</summary>
+    private void ClearLinePreview()
+    {
+        foreach (var kvp in highlightedOriginalColors)
+        {
+            if (cellToCube.TryGetValue(kvp.Key, out Transform t) && t != null)
+                ApplyBlockColorToCube(t.gameObject, kvp.Value);
+        }
+        highlightedOriginalColors.Clear();
+        highlightedRows.Clear();
+    }
+
+    // ── 셀레브레이션 연출 ────────────────────────────────────────────────
+
+    /// <summary>줄 클리어 후 다다닥~ 나타났다가 다다닥~ 사라지는 셀레브레이션 연출.</summary>
+    private System.Collections.IEnumerator CelebrationEffect(List<(int z, Color color, float y)> clearedRows)
+    {
+        int totalCols = gridMaxX - gridMinX + 1;
+        var spawnedCubes = new List<(GameObject go, int x)>();
+
+        // 오른쪽 → 왼쪽으로 순차 스폰
+        for (int col = 0; col < totalCols; col++)
+        {
+            int x = gridMaxX - col;
+            foreach (var (z, color, y) in clearedRows)
+            {
+                var go = CreateCelebrationCube(new Vector3(x, y, z), color);
+                spawnedCubes.Add((go, x));
+            }
+            yield return new WaitForSeconds(celebrationSpawnInterval);
+        }
+
+        yield return new WaitForSeconds(0.08f);
+
+        // 왼쪽 → 오른쪽으로 순차 축소
+        for (int x = gridMinX; x <= gridMaxX; x++)
+        {
+            foreach (var (go, gx) in spawnedCubes)
+            {
+                if (gx == x && go != null)
+                    StartCoroutine(ShrinkAndDestroy(go, celebrationShrinkDuration));
+            }
+            yield return new WaitForSeconds(celebrationShrinkInterval);
+        }
+
+        yield return new WaitForSeconds(celebrationShrinkDuration);
+    }
+
+    /// <summary>셀레브레이션용 임시 큐브 생성. 프리팹 미할당 시 기본 큐브로 대체.</summary>
+    private GameObject CreateCelebrationCube(Vector3 pos, Color color)
+    {
+        GameObject go;
+        if (celebrationCubePrefab != null)
+        {
+            go = Instantiate(celebrationCubePrefab, pos, Quaternion.identity);
+            ApplyBlockColorToCube(go, color);
+        }
+        else
+        {
+            go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.transform.position = pos;
+            Destroy(go.GetComponent<Collider>());
+            var r = go.GetComponent<Renderer>();
+            if (r != null) r.material.color = color;
+        }
+        return go;
+    }
+
+    private System.Collections.IEnumerator ShrinkAndDestroy(GameObject go, float duration)
+    {
+        if (go == null) yield break;
+        float elapsed = 0f;
+        Vector3 startScale = go.transform.localScale;
+        while (elapsed < duration)
+        {
+            if (go == null) yield break;
+            elapsed += Time.deltaTime;
+            go.transform.localScale = Vector3.Lerp(startScale, Vector3.zero, elapsed / duration);
+            yield return null;
+        }
+        if (go != null) Destroy(go);
+    }
+
+    // ── 파티클 공통 헬퍼 ────────────────────────────────────────────────
+
+    /// <summary>
+    /// 파티클 프리팹을 지정 위치에 스폰하고 색상을 주입합니다.
+    /// 프리팹의 모든 ParticleSystem.main.startColor에 color가 적용됩니다.
+    /// 프리팹은 흰색(1,1,1) 기준으로 제작하세요.
+    /// </summary>
+    private void SpawnParticleWithColor(GameObject prefab, Vector3 pos, Color color)
+    {
+        if (prefab == null) return;
+        var go = Instantiate(prefab, pos, Quaternion.identity);
+        foreach (var ps in go.GetComponentsInChildren<ParticleSystem>(true))
+        {
+            var main = ps.main;
+            main.startColor = color;
         }
     }
 

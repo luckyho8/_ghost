@@ -23,7 +23,9 @@ public class FallingBlock : MonoBehaviour
             cubes.Add(transform.GetChild(i));
     }
 
-    private List<Vector2Int> GetCurrentCells()
+    public Color BlockColor => data != null ? data.blockColor : Color.white;
+
+    public List<Vector2Int> GetCurrentCells()
     {
         var list = new List<Vector2Int>();
         foreach (var t in cubes)

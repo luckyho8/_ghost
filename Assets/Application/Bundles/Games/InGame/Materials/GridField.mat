@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: box_1x1
-  m_Shader: {fileID: 4800000, guid: a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6, type: 3}
+  m_Name: GridField
+  m_Shader: {fileID: 4800000, guid: b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -26,12 +26,11 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _CornerRadius: 0.2
-    - _TopHighlight: 0.4
-    - _SideDarken: 0.3
-    - _BorderWidth: 0.06
-    - _BorderDarken: 0.55
+    - _GridSize: 1
+    - _LineThickness: 0.05
+    - _CellRound: 0.15
     m_Colors:
-    - _BaseColor: {r: 0, g: 1, b: 0.9733625, a: 1}
-    - _Color: {r: 0, g: 1, b: 0.9733562, a: 1}
+    - _BgColor: {r: 0.10, g: 0.09, b: 0.20, a: 1}
+    - _CellColor: {r: 0.13, g: 0.12, b: 0.25, a: 1}
+    - _LineColor: {r: 0.22, g: 0.20, b: 0.38, a: 1}
   m_BuildTextureStacks: []
