@@ -1,0 +1,344 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: UI_Gray
+  m_Shader: {fileID: 4800000, guid: a6d12c5eb81c9e24999bc5b431b025d7, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords:
+  - BLUR
+  - BLUR_HIGH
+  - FLIPBOOK_BLEND
+  - GRAYSCALE
+  m_InvalidKeywords:
+  - _DISAFFECTEDUV_ON
+  - _DISNOISEDUV_ON
+  - _MASKAFFECTEDUV_ON
+  - _NOISEADDITIVENOCOLOR_ON
+  - _NOISEDMASKUV_ON
+  - _USEDIFFUSECOLOR_ON
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _AlphaTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _BackTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _DisSubTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _DissolveTex:
+        m_Texture: {fileID: 2800000, guid: 8358e165f0dec33479378bf2cabbe906, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _FlowMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _LerpTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MainTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MaskTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _NoiseTex:
+        m_Texture: {fileID: 2800000, guid: 4c0062336899a834189bf4f3c7d90a25, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _NormalMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Overlay2Tex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _OverlayTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _ParticleTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SubNoiseTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _AdditiveColorIntensity: 1
+    - _AdditiveColorTwinkling: 0
+    - _AdditiveColorTwinklingRandom: 0
+    - _AdditiveColorTwinklingSpeed: 0.5
+    - _AdditiveIntensity: 0
+    - _AdditiveOutlineOnly: 0
+    - _AdditiveOverlay2Only: 0
+    - _AdditiveOverlayOnly: 0
+    - _AlphaOffset: 0.5
+    - _AlphaTest: 0
+    - _Blend1: 5
+    - _Blend2: 10
+    - _BlurAmount: 0.3
+    - _BlurHigh: 1
+    - _Centralize: 0
+    - _ClampAtlasUV: 0
+    - _ColorIntensity: 0
+    - _ColorMask: 15
+    - _Contrast: 1
+    - _CullMode: 2
+    - _DepthWrite: 0
+    - _DisAffectedUV: 1
+    - _DisApplyMainTexAlpha: 0
+    - _DisEdge: 0.013
+    - _DisEdgeIntensity: 0.02
+    - _DisGrayscale: 0
+    - _DisNoisePower: 4.05
+    - _DisNoisedUV: 1
+    - _DisOutlineOnly: 0
+    - _DisOverlay2Only: 0
+    - _DisOverlayOnly: 0
+    - _DisPolarCoord: 0
+    - _DisProgress: 1
+    - _DisReverse: 0
+    - _DisRotate: 0
+    - _DisScreenUV: 0
+    - _DisShear: 0
+    - _DisUVType: 0
+    - _DisUseTexColor: 0
+    - _EnableExternalAlpha: 0
+    - _FixedPivot: 0
+    - _FlipbookBlend: 1
+    - _FlipbookCellCount: 6
+    - _FlipbookCellCountY: 6
+    - _FlipbookSpeed: 24
+    - _FlowSpeed: 1
+    - _FlowStrength: 0
+    - _GrayScaleWeight: 1
+    - _Interpolation: 0
+    - _InverseU: 0
+    - _InverseV: 0
+    - _IsEffectMask: 0
+    - _IsMaskPremultipliedAlpha: 0
+    - _IsPMA: 0
+    - _IsPremultipliedAlpha: 0
+    - _KeepMaskRatio: 0
+    - _Loop: 0
+    - _LoopSpeed: 0.1
+    - _MainTexMoveX: 0
+    - _MainTexMoveY: 0
+    - _MainTexOffsetX: 0
+    - _MainTexOffsetY: 0
+    - _MainTexRot: 0
+    - _MainTexRotOffset: 0
+    - _MainTexRotPivotX: 0.5
+    - _MainTexRotPivotY: 0.5
+    - _MainTexShear: 0
+    - _MaskAffectedUV: 1
+    - _MaskMoveX: 0
+    - _MaskMoveY: 0
+    - _MaskNoisePower: 1
+    - _MaskOffsetX: 0
+    - _MaskOffsetY: 0
+    - _MaskPolarCoord: 0
+    - _MaskRot: 0
+    - _MaskRotOffset: 0
+    - _MaskRotPivotX: 0.5
+    - _MaskRotPivotY: 0.5
+    - _MultiplyAlpha: 0
+    - _NoMask: 0
+    - _NoiseAdditiveIntensity: 1
+    - _NoiseAdditiveNoColor: 1
+    - _NoiseDissolveOnly: 0
+    - _NoiseMask: 0
+    - _NoiseMaskOnly: 0
+    - _NoiseMoveX: 0
+    - _NoiseMoveY: 0
+    - _NoiseOffsetX: 0
+    - _NoiseOffsetY: 0
+    - _NoiseOutlineOnly: 0
+    - _NoiseOverlay2Only: 0
+    - _NoiseOverlayOnly: 0
+    - _NoisePolarCoord: 0
+    - _NoiseRot: 0
+    - _NoiseRotOffset: 0
+    - _NoiseRotPivotX: 0.5
+    - _NoiseRotPivotY: 0.5
+    - _NoiseScreenUV: 0
+    - _NoiseStrength: -0.5
+    - _NoisedMaskUV: 1
+    - _OffsetY: 0.15
+    - _OutlineThickness: 0.01
+    - _Overlay2Additive: 0
+    - _Overlay2Alpha: 1
+    - _Overlay2Frac: 0
+    - _Overlay2MainTexAlpha: 0
+    - _Overlay2MoveX: 0
+    - _Overlay2MoveY: 0
+    - _Overlay2NoisePower: 1
+    - _Overlay2NoisedUV: 0
+    - _Overlay2OffsetX: 0
+    - _Overlay2OffsetY: 0
+    - _Overlay2PolarCoord: 0
+    - _Overlay2Rot: 0
+    - _Overlay2RotOffset: 0
+    - _Overlay2ScreenUV: 0
+    - _OverlayAdditive: 0
+    - _OverlayAlpha: 1
+    - _OverlayFrac: 0
+    - _OverlayMainTexAlpha: 0
+    - _OverlayMoveX: 0
+    - _OverlayMoveY: 0
+    - _OverlayNoisePower: 1
+    - _OverlayNoiseWeight: 0
+    - _OverlayNoisedUV: 0
+    - _OverlayOffsetX: 0
+    - _OverlayOffsetY: 0
+    - _OverlayPolarCoord: 0
+    - _OverlayRot: 0
+    - _OverlayRotOffset: 0
+    - _OverlayRotPivotX: 0.5
+    - _OverlayRotPivotY: 0.5
+    - _OverlayScreenUV: 0
+    - _OverlayStrength: 0.5
+    - _OverlayUVType: 0
+    - _ParticleRandomMov: 0
+    - _ParticleRandomRot: 0
+    - _PixelSize: 0.01
+    - _RandomWeight: 5
+    - _RemapAtlasUV: 0
+    - _RemapSpriteAtlasUV: 0
+    - _ReverseMask: 0
+    - _ReverseU: 0
+    - _ReverseUV: 0
+    - _ReverseV: 0
+    - _RippleInterval: 0.015
+    - _RipplePivotX: 0.5
+    - _RipplePivotY: 0.5
+    - _RippleReverse: 0
+    - _RippleSpeed: 0.1
+    - _RippleStrength: 0.1
+    - _RippleTwistStrength: 1
+    - _Saturation: 1
+    - _ShowDis: 0
+    - _ShowFlowmap: 0
+    - _ShowMask: 0
+    - _ShowNoise: 0
+    - _ShowOverlay: 0
+    - _ShowOverlay2: 0
+    - _ShowRGB: 0
+    - _ShowSubNoise: 0
+    - _ShowUV: 0
+    - _Stencil: 0
+    - _StencilComp: 8
+    - _StencilOp: 0
+    - _StencilReadMask: 255
+    - _StencilWriteMask: 255
+    - _SubCentralize: 0
+    - _SubNoiseMask: 0
+    - _SubNoiseMoveX: 0
+    - _SubNoiseMoveY: 0
+    - _SubNoiseOffsetX: 0
+    - _SubNoiseOffsetY: 0
+    - _SubNoisePolarCoord: 0
+    - _SubNoiseRot: 0
+    - _SubNoiseRotOffset: 0
+    - _SubNoiseRotPivotX: 0.5
+    - _SubNoiseRotPivotY: 0.5
+    - _SubNoiseStrength: 0
+    - _SupportPMAFade: 0
+    - _SupportParticle: 0
+    - _SwingPivotX: 0.5
+    - _SwingPivotY: 0.5
+    - _SwingSpeed: 0.1
+    - _SwingStrength: 0.1
+    - _Temperature: 0
+    - _TileAtlasUV: 0
+    - _Tint: 0
+    - _TwistPivotX: 0.5
+    - _TwistPivotY: 0.5
+    - _TwistSize: 0.5
+    - _TwistStrength: 0.5
+    - _UVType: 0
+    - _UseAdditiveColor: 0
+    - _UseBlur: 1
+    - _UseConSat: 0
+    - _UseCustomData: 0
+    - _UseDiffuseColor: 1
+    - _UseDisSubTex: 0
+    - _UseDissolve: 0
+    - _UseFlipbook: 0
+    - _UseFlowMap: 0
+    - _UseGrayscale: 1
+    - _UseGrayscaleMainTexture: 0
+    - _UseLerpTex: 0
+    - _UseMainTexMoveAndRot: 0
+    - _UseMask: 0
+    - _UseNoise: 0
+    - _UseNoiseAdditiveColor: 0
+    - _UseOutline: 0
+    - _UseOutlineHigh: 0
+    - _UseOverlay: 0
+    - _UseOverlay2: 0
+    - _UseOverlayTex: 0
+    - _UsePixelate: 0
+    - _UsePixelation: 0
+    - _UsePolarCoordinates: 0
+    - _UseRipple: 0
+    - _UseSubNoise: 0
+    - _UseSwing: 0
+    - _UseTextureColor: 0
+    - _UseTwist: 0
+    - _UseTwoFace: 0
+    - _UseUIAlphaClip: 0
+    - _UseVertColor1: 0
+    - _UseVertColor2: 0
+    - _UseWhiteBalance: 0
+    - _UseWind: 0
+    - _WindRandom: 0
+    - _WindReverse: 0
+    - _WindSpeed: 0.5
+    - _WindSpeedX: 0.5
+    - _WindSpeedY: 0.5
+    - _WindUVType: 0
+    - _WindX: 0
+    - _WindY: 0
+    - _ZTest: 0
+    m_Colors:
+    - _AdditiveColor: {r: 0, g: 0, b: 0, a: 1}
+    - _BlackColor: {r: 0, g: 0, b: 0, a: 1}
+    - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _DisEdgeAdditiveColor: {r: 1, g: 0, b: 0, a: 1}
+    - _Flip: {r: 1, g: 1, b: 1, a: 1}
+    - _FlowColor: {r: 0, g: 0, b: 0, a: 1}
+    - _NoiseAdditiveColor: {r: 0, g: 0, b: 0, a: 1}
+    - _OutlineColor: {r: 0, g: 0, b: 0, a: 1}
+    - _Overlay2Color: {r: 1, g: 1, b: 1, a: 1}
+    - _OverlayColor: {r: 1, g: 1, b: 1, a: 1}
+    - _RendererColor: {r: 1, g: 1, b: 1, a: 1}
+    - _WhiteColor: {r: 1, g: 1, b: 1, a: 1}
+  m_BuildTextureStacks: []
