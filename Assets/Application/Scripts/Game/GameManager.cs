@@ -68,6 +68,9 @@ public class GameManager : MonoBehaviour
     [Header("Item (Ghost 등)")]
     [SerializeField] private ItemManager itemManager;
 
+    [Header("Gimmick Ball")]
+    [SerializeField] private GimmickBallManager gimmickBallManager;
+
     // ── 연출: FX 프리팹 슬롯 ──────────────────────────────────────────────
     // 파티클 프리팹은 흰색(1,1,1) 기준으로 제작하면 코드가 런타임에 색상을 주입합니다.
     [Header("연출 - FX 프리팹 (추후 파티클 연결)")]
@@ -264,6 +267,8 @@ public class GameManager : MonoBehaviour
             if (gauge_Bar != null) gauge_Bar.value = speedUpInterval;
             currentLevel++;
             UpdateLevelUI();
+            if (gimmickBallManager != null)
+                gimmickBallManager.OnLevelChanged(currentLevel);
         }
     }
 
@@ -575,6 +580,7 @@ public class GameManager : MonoBehaviour
             cellToCube[cell] = cube;
             cellBaseColors[cell] = blockColor;
             cube.SetParent(null);
+            cube.gameObject.tag = "FixedCube"; // 기믹 볼 충돌 감지용
         }
     }
 
@@ -737,6 +743,37 @@ public class GameManager : MonoBehaviour
         currentBlock.Init(this, data, pivotX, pivotZ);
         fallAccumulator = 0f;
         currentBlockSpawnTime = Time.time;
+
+        if (itemManager != null && itemManager.isGhostActive)
+        {
+            EnsureGhostRoot();
+            RebuildGhostFromCurrentBlock();
+            ghostBlockRoot.SetActive(true);
+        }
+    }
+
+    /// <summary>기믹 볼: 낙하 중 블록을 현재 위치에서 랜덤 블록으로 교체 (형태+색상 변경).</summary>
+    public void RandomizeCurrentBlock()
+    {
+        if (currentBlock == null || allBlockData == null || allBlockData.blockList.Count == 0) return;
+
+        // 현재 위치/회전/피벗 저장
+        Vector3 curPos = currentBlock.transform.position;
+        Quaternion curRot = currentBlock.transform.rotation;
+        int pivotX = currentBlock.PivotGridX;
+        int pivotZ = currentBlock.PivotGridZ;
+
+        // 기존 블록 파괴
+        ClearLinePreview();
+        if (ghostBlockRoot != null) ghostBlockRoot.SetActive(false);
+        Destroy(currentBlock.gameObject);
+        currentBlock = null;
+
+        // 랜덤 블록 데이터로 현재 위치에 재생성
+        var newData = allBlockData.blockList[Random.Range(0, allBlockData.blockList.Count)];
+        var container = CreateBlockContainer(newData, curPos, curRot);
+        currentBlock = container.AddComponent<FallingBlock>();
+        currentBlock.Init(this, newData, pivotX, pivotZ);
 
         if (itemManager != null && itemManager.isGhostActive)
         {
@@ -991,7 +1028,6 @@ public class GameManager : MonoBehaviour
     private void ApplyGhostMaterial(GameObject cube)
     {
         var renderers = cube.GetComponentsInChildren<Renderer>(true);
-        Color ghostColor = new Color(1f, 1f, 1f, 0.3f);
         foreach (var r in renderers)
         {
             if (r == null) continue;
@@ -999,14 +1035,6 @@ public class GameManager : MonoBehaviour
             if (ghostMat != null)
             {
                 r.material = ghostMat;
-            }
-            else
-            {
-                var block = new MaterialPropertyBlock();
-                r.GetPropertyBlock(block);
-                block.SetColor(BaseColorId, ghostColor);
-                block.SetColor(ColorId, ghostColor);
-                r.SetPropertyBlock(block);
             }
         }
     }

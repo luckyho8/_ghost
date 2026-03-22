@@ -10,6 +10,9 @@ public class FallingBlock : MonoBehaviour
     private BlockDataContents data;
     private int pivotGridX;
     private int pivotGridZ;
+
+    public int PivotGridX => pivotGridX;
+    public int PivotGridZ => pivotGridZ;
     private List<Transform> cubes = new List<Transform>();
 
     public void Init(GameManager gm, BlockDataContents blockData, int startX, int startZ)
