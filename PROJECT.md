@@ -13,11 +13,11 @@
 | **엔진** | Unity (URP) |
 | **개발 방식** | 1인 개발 |
 | **개발 시작** | 2026년 초 |
-| **현재 상태** | 인게임 핵심 기능 구현 완료, 다듬기 및 기능 확장 단계 |
+| **현재 상태** | 인게임 핵심 기능 + 볼 기믹 구현 완료, UX/밸런스 다듬기 단계 |
 
 ---
 
-## 현재 구현 현황 (2026-03-19 기준)
+## 현재 구현 현황 (2026-03-22 기준)
 
 ### ✅ 구현 완료
 
@@ -28,6 +28,14 @@
 - 고스트 피스 (블록 낙하 위치 미리보기)
 - 레벨 시스템 (40초마다 레벨업, 낙하 속도 10% 가속)
 - 속도 게이지 UI
+
+#### 볼 기믹 시스템
+- 게임 시작 시 볼 1개가 그리드 안을 대각선 이동
+- 낙하 블록 충돌 → 현재 위치에서 랜덤 블록으로 형태 변환
+- 고정 블록 충돌 → 해당 셀 파괴
+- 벽 충돌 → 단순 반사 (랜덤 편차로 갇힘 방지)
+- 레벨별 볼 크기 성장 + 속도 증가 (Inspector 조절)
+- 갇힘 탈출 로직 (연속 충돌 감지 → 중앙 워프)
 
 #### 아이템 시스템 (6종)
 | 번호 | 아이템 | 효과 |
@@ -50,16 +58,21 @@
 - 레벨 표시
 - 타이머 (MM:SS:ms)
 - 아이템 버튼 6개 (수량 배지, 0개시 광고 버튼)
+- 조작 버튼 5개 (Left, Down, Drop, Rotate, Right) + 아이콘 적용
+- UIBounceEffect: 버튼 눌림 바운스 (컴포넌트 부착만으로 동작)
 
 #### 블록 데이터
 - 8종 블록 정의 (ScriptableObject)
 - 블록 에디터 툴 (Unity Editor 내장)
 - 4×4 그리드 기반 블록 설계
+- 티어 시스템 (1~3단계, 밸런스 미적용)
 
 #### 기술 스펙
 - 그리드 크기: 15 × 27 (X: -7~7, Z: -12~15)
-- 커스텀 쉐이더 2종 (BlockStyle, GridField)
+- 커스텀 쉐이더 3종 (BlockStyle, BlockStyleGhost, GridField)
+- 레이어: Ball(8), Block(9), Wall(10)
 - 입력: 키보드(WASD+G) + 터치 버튼
+- 물리: 볼은 Rigidbody velocity 기반 이동
 
 ---
 
@@ -67,17 +80,19 @@
 
 ### 🔜 단기 (다음 목표)
 
-- [ ] **스코어 저장** — PlayerPrefs 또는 로컬 파일로 최고점 저장
+- [ ] **점수 시스템 정리** — 콤보 점수 계산, 스코어 저장 (PlayerPrefs)
+- [ ] **콤보 연출** — 콤보 UI 피드백, 연출 강화
 - [ ] **게임 오버 / 재시작** — 게임 오버 판정 및 씬 재시작 흐름
-- [ ] **다음 블록 미리보기** — 스폰 포인트(NextPoint_00~03) 활용한 대기열 표시
+- [ ] **UX 전반 개선** — Block Blast 스타일 참고, 넥스트 블록 표시 개선
 
 ### 📅 중기
 
-- [ ] **볼 기믹** — 공이 그리드 안에서 튀어다니며 블록 파괴하는 특수 메커닉
+- [ ] **티어별 블록 밸런스** — 레벨별 블록 출현 가중치 조정 (tier 1~3)
+- [ ] **볼 기믹 추가 튜닝** — 충돌 효과 연출, 볼 비주얼 개선
 - [ ] **UI 연출 강화** — 게임오버 연출, 스코어 갱신 연출, 아이템 사용 피드백
 - [ ] **사운드 / 음악** — BGM, SFX (착지음, 라인클리어음, 아이템음)
 - [ ] **광고 연동** — 아이템 리필 광고 (UnityAds 또는 Admob)
-- [ ] **난이도 곡선 조정** — 레벨별 블록 출현 가중치 조정
+- [ ] **고스트 피스 비주얼** — box_1x1_Ghost.mat 조정 (반투명 + 블록 색상)
 
 ### 🗓 장기
 
@@ -95,22 +110,27 @@
 Assets/Application/
 ├── Scripts/
 │   ├── Game/
-│   │   ├── GameManager.cs      — 핵심 게임 루프, 그리드, 라인 클리어
-│   │   ├── FallingBlock.cs     — 블록 이동/회전/충돌
-│   │   ├── ItemManager.cs      — 아이템 6종 로직
-│   │   └── UIBounceEffect.cs   — UI 버튼 바운스 애니메이션
+│   │   ├── GameManager.cs          — 핵심 게임 루프, 그리드, 라인 클리어
+│   │   ├── FallingBlock.cs         — 블록 이동/회전/충돌
+│   │   ├── ItemManager.cs          — 아이템 6종 로직
+│   │   ├── GimmickBall.cs          — 볼 기믹 이동/충돌/반사
+│   │   ├── GimmickBallManager.cs   — 볼 스폰/레벨별 크기·속도 제어
+│   │   └── UIBounceEffect.cs       — UI 버튼 바운스 애니메이션
 │   └── Data/
-│       ├── BlockData.cs        — 블록 데이터 구조체
-│       ├── AllBlockData.cs     — 전체 블록 컨테이너 (ScriptableObject)
-│       └── Editor/             — 블록 에디터 툴
+│       ├── BlockData.cs            — 블록 데이터 구조체
+│       ├── AllBlockData.cs         — 전체 블록 컨테이너 (ScriptableObject)
+│       └── Editor/                 — 블록 에디터 툴
 ├── Bundles/
-│   ├── Scenes/GameScene.unity  — 메인 씬
-│   └── Games/InGame/BaseCube.prefab
+│   ├── Scenes/GameScene.unity      — 메인 씬
+│   └── Games/InGame/
+│       ├── BaseCube.prefab         — 블록 큐브 프리팹
+│       └── Gimmick_Ball_01.prefab  — 볼 기믹 프리팹
 ├── Data/
-│   └── AllBlockData.asset      — 블록 정의 데이터 파일
+│   └── AllBlockData.asset          — 블록 정의 데이터 파일
 └── Shaders/
-    ├── BlockStyle.shader
-    └── GridField.shader
+    ├── BlockStyle.shader           — 블록 렌더링 (불투명)
+    ├── BlockStyleGhost.shader      — 고스트 피스용 (투명)
+    └── GridField.shader            — 그리드 배경
 ```
 
 ### 핵심 설계 원칙
@@ -118,6 +138,7 @@ Assets/Application/
 - **Material Property Block**: 런타임 색상 변경 (인스턴스 생성 없음, 성능 최적화)
 - **HashSet/Dictionary 기반 그리드**: O(1) 충돌 검사
 - **코루틴 기반 연출**: 모든 시각 효과는 비동기 코루틴
+- **레이어 기반 물리**: Ball(8)/Block(9)/Wall(10) 분리, Physics Matrix로 충돌 제어
 
 ---
 
@@ -128,6 +149,11 @@ Assets/Application/
 PROJECT.md를 읽어줘. 오늘은 [기능명]을 구현할 거야.
 ```
 
+### 플랜 모드로 정리하고 싶을 때
+```
+PROJECT.md 읽어줘. 플랜모드로 갈 건데, [정리하고 싶은 주제들] 로드맵 정리해줘.
+```
+
 ### 기능 추가 요청 예시
 ```
 스코어 저장 기능 추가해줘. PlayerPrefs 써서 최고점 저장하고 게임 오버시 비교해서 갱신되게.
@@ -136,11 +162,6 @@ PROJECT.md를 읽어줘. 오늘은 [기능명]을 구현할 거야.
 ### 버그 수정 요청 예시
 ```
 라인 클리어 후 가끔 블록이 허공에 뜨는 버그가 있어. GameManager.cs 봐줘.
-```
-
-### 이 문서 업데이트 요청
-```
-볼 기믹 구현 완료했어. PROJECT.md 업데이트해줘.
 ```
 
 ---
@@ -165,3 +186,8 @@ PROJECT.md를 읽어줘. 오늘은 [기능명]을 구현할 거야.
 | 2026-03-19 | PROJECT.md 최초 작성. 현재 구현 현황 정리 |
 | 2026-03-19 | 라인 완료 예고 하이라이트 + 셀레브레이션 연출 추가 (커밋: a727a9d) |
 | 2026-03-19 | 고스트 피스 기능 추가 (커밋: f0fc6ab) |
+| 2026-03-22 | 볼 기믹 시스템 구현 (GimmickBall + GimmickBallManager) |
+| 2026-03-22 | 레이어 구조 추가 (Ball:8, Block:9, Wall:10) + Top_Wall 추가 |
+| 2026-03-22 | 아이템/조작 아이콘 11종 생성 및 적용 |
+| 2026-03-22 | BlockStyleGhost.shader 추가 (고스트 피스 투명 셰이더) |
+| 2026-03-22 | 볼 기믹 버그 수정: 고정 블록 셀 파괴, 갇힘 탈출, 블록 변환 위치 유지 |
