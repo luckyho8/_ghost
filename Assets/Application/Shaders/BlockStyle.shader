@@ -15,7 +15,7 @@ Shader "Custom/BlockStyle"
     SubShader
     {
         Tags { "RenderType"="Opaque" "RenderPipeline"="UniversalPipeline" "Queue"="Geometry" }
-        Cull Back
+        Cull Off
 
         Pass
         {
@@ -89,14 +89,21 @@ Shader "Custom/BlockStyle"
                 float3 col = _BaseColor.rgb;
 
                 // ── 윗면 ────────────────────────────────
-                // 하이라이트: 위쪽 중앙에 밝은 타원형 광택
-                float2 hlUV = faceUV - float2(0.5, 0.65);
-                float  hl   = saturate(1.0 - length(hlUV * float2(1.4, 1.0)) * 2.2);
-                hl = hl * hl * _TopHighlight * isTop;
+                // 주 하이라이트: 좌상단 작고 밝은 광택
+                float2 hlUV = faceUV - float2(0.3, 0.7);
+                float  hl   = saturate(1.0 - length(hlUV) * 3.2);
+                hl = hl * hl * hl * _TopHighlight * 2.5 * isTop;
                 col += hl;
 
-                // 테두리: 둥근 모서리 안쪽 어두운 링
-                float borderMask = (1.0 - saturate((-sdf) / max(_BorderWidth, 0.001))) * isTop;
+                // 보조 하이라이트: 넓고 부드러운 전면 광택
+                float2 hl2UV = faceUV - float2(0.38, 0.62);
+                float  hl2   = saturate(1.0 - length(hl2UV) * 1.8);
+                hl2 = hl2 * _TopHighlight * 0.4 * isTop;
+                col += hl2;
+
+                // 외곽 테두리 (BorderWidth=0 이면 사실상 꺼짐)
+                float innerSDF = -sdf;
+                float borderMask = (1.0 - saturate(innerSDF / max(_BorderWidth, 0.001))) * isTop;
                 col *= (1.0 - _BorderDarken * borderMask);
 
                 // ── 옆면 ────────────────────────────────

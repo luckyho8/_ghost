@@ -182,6 +182,13 @@ namespace Ghost.Editor
             thumbnailCache.Clear();
         }
 
+        private static readonly Color TierColor1 = new Color(0.2f, 0.7f, 0.2f);
+        private static readonly Color TierColor2 = new Color(0.9f, 0.6f, 0.1f);
+        private static readonly Color TierColor3 = new Color(0.8f, 0.2f, 0.2f);
+
+        private static Color GetTierColor(int tier)
+            => tier == 1 ? TierColor1 : tier == 2 ? TierColor2 : TierColor3;
+
         private void DrawListElement(Rect rect, int index, bool active, bool focused)
         {
             if (index < 0 || index >= blockListProp.arraySize) return;
@@ -193,8 +200,26 @@ namespace Ghost.Editor
             else
                 EditorGUI.DrawRect(thumbRect, new Color(0.2f, 0.2f, 0.2f));
 
-            int id = element.FindPropertyRelative("blockID").intValue;
-            EditorGUI.LabelField(new Rect(thumbRect.xMax + 6, rect.y + 2, rect.width - thumbRect.width - 14, ThumbnailSize), AllBlockData.BlockIdToDisplay(id), EditorStyles.miniLabel);
+            int id   = element.FindPropertyRelative("blockID").intValue;
+            int tier = Mathf.Clamp(element.FindPropertyRelative("tier").intValue, 1, 3);
+
+            float infoX = thumbRect.xMax + 6f;
+            float infoW = rect.width - thumbRect.width - 14f;
+
+            // 티어 뱃지
+            Rect badgeRect = new Rect(infoX, rect.y + 4f, 28f, 16f);
+            EditorGUI.DrawRect(badgeRect, GetTierColor(tier));
+            var badgeStyle = new GUIStyle(EditorStyles.miniLabel)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontStyle  = FontStyle.Bold,
+            };
+            badgeStyle.normal.textColor = Color.white;
+            EditorGUI.LabelField(badgeRect, $"T{tier}", badgeStyle);
+
+            // 블록 ID
+            EditorGUI.LabelField(new Rect(infoX, rect.y + 24f, infoW, 18f),
+                AllBlockData.BlockIdToDisplay(id), EditorStyles.miniLabel);
         }
 
         private Texture2D GetThumbnailFromElement(SerializedProperty element)
@@ -358,10 +383,15 @@ namespace Ghost.Editor
             if (GUILayout.Button("Clear Design", GUILayout.Height(22)))
                 ClearDesignOnly();
 
-            EditorGUILayout.Space(10);
-            EditorGUILayout.LabelField("Save As (새 파일)", EditorStyles.miniLabel);
+            EditorGUILayout.Space(16);
+            EditorGUI.DrawRect(GUILayoutUtility.GetRect(0, 1), new Color(0.5f, 0.5f, 0.5f, 0.4f));
+            EditorGUILayout.Space(8);
+            EditorGUILayout.LabelField("▼ 백업 전용 (현재 파일 유지)", EditorStyles.centeredGreyMiniLabel);
+            EditorGUILayout.LabelField("Export Copy", EditorStyles.miniLabel);
             saveAsFileName = EditorGUILayout.TextField(saveAsFileName);
-            if (GUILayout.Button("Save As", GUILayout.Height(22)))
+            var exportStyle = new GUIStyle(GUI.skin.button);
+            exportStyle.normal.textColor = new Color(0.7f, 0.7f, 0.7f);
+            if (GUILayout.Button("Export As Copy", exportStyle, GUILayout.Height(22)))
                 SaveAsNewFile();
 
             EditorGUILayout.EndScrollView();
@@ -458,8 +488,36 @@ namespace Ghost.Editor
         private void DrawBlockListPanel()
         {
             EditorGUILayout.BeginVertical(GUILayout.Width(220));
+
+            // 티어별 카운트 요약
+            int c1 = 0, c2 = 0, c3 = 0;
+            if (blockListProp != null)
+            {
+                for (int i = 0; i < blockListProp.arraySize; i++)
+                {
+                    int t = Mathf.Clamp(blockListProp.GetArrayElementAtIndex(i).FindPropertyRelative("tier").intValue, 1, 3);
+                    if (t == 1) c1++; else if (t == 2) c2++; else c3++;
+                }
+            }
+            EditorGUILayout.BeginHorizontal();
+            var s1 = new GUIStyle(EditorStyles.miniLabel); s1.normal.textColor = TierColor1;
+            var s2 = new GUIStyle(EditorStyles.miniLabel); s2.normal.textColor = TierColor2;
+            var s3 = new GUIStyle(EditorStyles.miniLabel); s3.normal.textColor = TierColor3;
+            GUILayout.Label($"T1: {c1}", s1);
+            GUILayout.Label("|", EditorStyles.miniLabel);
+            GUILayout.Label($"T2: {c2}", s2);
+            GUILayout.Label("|", EditorStyles.miniLabel);
+            GUILayout.Label($"T3: {c3}", s3);
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.Space(2);
+
+            // 스크롤 가능한 리스트
+            listScroll = EditorGUILayout.BeginScrollView(listScroll);
             if (reorderableList != null)
                 reorderableList.DoList(GUILayoutUtility.GetRect(220, reorderableList.GetHeight()));
+            EditorGUILayout.EndScrollView();
+
             EditorGUILayout.Space(4);
             if (GUILayout.Button("Add Block"))
             {
@@ -537,6 +595,15 @@ namespace Ghost.Editor
                 ShowNotification(new GUIContent("파일 이름을 입력하세요."));
                 return;
             }
+
+            string currentPath = allBlockData != null ? AssetDatabase.GetAssetPath(allBlockData) : "(없음)";
+            bool confirmed = EditorUtility.DisplayDialog(
+                "Export As Copy",
+                $"현재 파일:\n{currentPath}\n\n복사본을 '{saveAsFileName}.asset'으로 저장합니다.\n현재 작업 파일은 변경되지 않습니다.",
+                "저장",
+                "취소");
+            if (!confirmed) return;
+
             EnsureDataFolderExists();
             string name = saveAsFileName.Trim();
             if (!name.EndsWith(".asset")) name += ".asset";
@@ -553,8 +620,8 @@ namespace Ghost.Editor
             AssetDatabase.CreateAsset(newAsset, path);
             AssetDatabase.SaveAssets();
 
-            SwitchToAllBlockData(newAsset);
-            ShowNotification(new GUIContent("Saved As: " + path));
+            // 현재 작업 파일은 유지 (SwitchToAllBlockData 호출 안 함)
+            ShowNotification(new GUIContent("복사 저장됨: " + path));
             Repaint();
         }
     }

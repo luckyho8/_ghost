@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 using TMPro;
 
@@ -14,19 +15,20 @@ public class ItemSlotUI
 }
 
 /// <summary>
-/// 아이템 옵션 및 버튼 관리. 수량 제한(최대 9), UI 상태, 고스트 1회용 발동.
+/// 아이템 옵션 및 버튼 관리. 수량 제한(최대 9), UI 상태.
+/// 아이템 5종: Bomb, TimeStop, LevelDown, Reroll, GhostToggle
 /// </summary>
 public class ItemManager : MonoBehaviour
 {
     private const int MaxItemCount = 9;
-    private const int GhostItemIndex = 5;
 
     [Header("참조")]
     public GameManager gameManager;
 
-    [Header("아이템 수량 및 UI (0~5: Bomb, TimeStop, LevelDown, Reroll, Gravity, Ghost)")]
-    public int[] itemCounts = new int[6];
-    public ItemSlotUI[] itemUIs = new ItemSlotUI[6];
+    [Header("아이템 수량 및 슬롯 UI (0~3: Bomb, TimeStop, LevelDown, Reroll)")]
+    public int[] itemCounts = new int[4];
+    [FormerlySerializedAs("itemSlots")]
+    public ItemSlotUI[] itemSlots = new ItemSlotUI[4];
 
     [Header("1. Bomb Item")]
     [SerializeField] private int bombClearRows = 3;
@@ -46,16 +48,9 @@ public class ItemManager : MonoBehaviour
     public int targetIBlockIndex = 0;
     public Button btn_Reroll;
 
-    [Header("5. Gravity Item")]
-    [SerializeField] private float gravitySettleDelay = 0.1f;
-    [Tooltip("아이템 1회 사용 시 각 큐브가 내려가는 최대 칸 수. 1=1줄 압축, 3=3줄 압축")]
-    [SerializeField] private int gravityDropCells = 1;
-    public Button btn_Gravity;
-
-    [Header("6. Ghost Piece (1회용 발동)")]
+    [Header("5. Ghost Piece Toggle (소모 없음 — 영구 토글)")]
     public Material ghostMaterial;
     public Button btn_Ghost;
-    public bool isGhostActive = false;
 
     private void Start()
     {
@@ -63,22 +58,21 @@ public class ItemManager : MonoBehaviour
         if (btn_TimeStop != null) btn_TimeStop.onClick.AddListener(() => TryUseItem(1, UseTimeStopItem));
         if (btn_LevelDown != null) btn_LevelDown.onClick.AddListener(() => TryUseItem(2, UseLevelDownItem));
         if (btn_Reroll != null) btn_Reroll.onClick.AddListener(() => TryUseItem(3, UseRerollItem));
-        if (btn_Gravity != null) btn_Gravity.onClick.AddListener(() => TryUseItem(4, UseGravityItem));
-        if (btn_Ghost != null) btn_Ghost.onClick.AddListener(() => TryUseItem(GhostItemIndex, ActivateGhostPiece));
+        if (btn_Ghost != null) btn_Ghost.onClick.AddListener(OnGhostButtonPressed);
 
         UpdateAllItemUI();
     }
 
     public void UpdateAllItemUI()
     {
-        for (int i = 0; i < itemUIs.Length && i < itemCounts.Length; i++)
+        for (int i = 0; i < itemSlots.Length && i < itemCounts.Length; i++)
             UpdateItemUI(i);
     }
 
     public void UpdateItemUI(int index)
     {
-        if (index < 0 || index >= itemUIs.Length || index >= itemCounts.Length) return;
-        ItemSlotUI ui = itemUIs[index];
+        if (index < 0 || index >= itemSlots.Length || index >= itemCounts.Length) return;
+        ItemSlotUI ui = itemSlots[index];
         if (ui == null) return;
 
         int count = itemCounts[index];
@@ -109,22 +103,15 @@ public class ItemManager : MonoBehaviour
             return;
         }
 
-        if (index == GhostItemIndex && isGhostActive)
-        {
-            Debug.Log("이미 이번 스테이지에서 고스트를 사용했습니다.");
-            return;
-        }
-
         itemCounts[index]--;
         UpdateItemUI(index);
         onUseItem?.Invoke();
     }
 
-    private void ActivateGhostPiece()
+    private void OnGhostButtonPressed()
     {
-        isGhostActive = true;
         if (gameManager != null)
-            gameManager.RefreshGhostState();
+            gameManager.ToggleGhostPiece();
     }
 
     public void UseBombItem()
@@ -168,9 +155,4 @@ public class ItemManager : MonoBehaviour
         gameManager.ReplaceCurrentBlockWith(targetIBlockIndex);
     }
 
-    public void UseGravityItem()
-    {
-        if (gameManager == null || gravitySettleDelay <= 0f) return;
-        gameManager.StartCoroutine(gameManager.GravityCompression(gravitySettleDelay, Mathf.Max(1, gravityDropCells)));
-    }
 }

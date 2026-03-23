@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 /// <summary>
@@ -19,6 +20,10 @@ public class GimmickBall : MonoBehaviour
     private Transform meshRoot;
     private Rigidbody rb;
     private Vector3 moveDirection;
+
+    // 스케일 펀치
+    private float originalScale = 1f;
+    private Coroutine punchCoroutine;
 
     // 레이어 번호 (Inspector에서 설정한 값과 일치해야 함)
     private int wallLayer;
@@ -67,6 +72,7 @@ public class GimmickBall : MonoBehaviour
 
     public void SetMeshScale(float scale)
     {
+        originalScale = scale;
         if (meshRoot != null)
             meshRoot.localScale = Vector3.one * scale;
     }
@@ -128,6 +134,7 @@ public class GimmickBall : MonoBehaviour
         // --- 벽 충돌 ---
         if (otherLayer == wallLayer)
         {
+            PlayHitPunch(1.25f);
             ApplyReflection(normal);
             return;
         }
@@ -142,21 +149,24 @@ public class GimmickBall : MonoBehaviour
                 // 낙하 블록 → 랜덤 변환
                 if (gameManager != null)
                     gameManager.RandomizeCurrentBlock();
+                PlayHitPunch(1.4f);
                 ApplyReflection(normal);
                 return;
             }
 
-            // 고정 블록 → 셀 파괴
+            // 고정 블록 → 셀 파괴 + 점수
             Vector3 cubePos = other.transform.position;
             int gx = Mathf.RoundToInt(cubePos.x);
             int gz = Mathf.RoundToInt(cubePos.z);
             if (gameManager != null)
-                gameManager.TryDestroyAndRemoveCubeAt(gx, gz);
+                gameManager.TryDestroyAndRemoveCubeAt(gx, gz, giveScore: true);
+            PlayHitPunch(1.5f);
             ApplyReflection(normal);
             return;
         }
 
         // 기타 충돌
+        PlayHitPunch(1.2f);
         ApplyReflection(normal);
     }
 
@@ -183,6 +193,31 @@ public class GimmickBall : MonoBehaviour
             moveDirection.z = -moveDirection.z;
 
         rb.velocity = moveDirection * speed;
+    }
+
+    private void PlayHitPunch(float punchMult)
+    {
+        if (punchCoroutine != null) StopCoroutine(punchCoroutine);
+        punchCoroutine = StartCoroutine(HitPunchRoutine(punchMult));
+    }
+
+    private IEnumerator HitPunchRoutine(float punchMult)
+    {
+        float punchScale = originalScale * punchMult;
+        float duration = 0.14f;
+        float t = 0f;
+        while (t < duration)
+        {
+            t += Time.deltaTime;
+            float ratio = t / duration;
+            float scale = ratio < 0.3f
+                ? Mathf.Lerp(originalScale, punchScale, ratio / 0.3f)
+                : Mathf.Lerp(punchScale, originalScale, (ratio - 0.3f) / 0.7f);
+            if (meshRoot != null) meshRoot.localScale = Vector3.one * scale;
+            yield return null;
+        }
+        if (meshRoot != null) meshRoot.localScale = Vector3.one * originalScale;
+        punchCoroutine = null;
     }
 
     private void ApplyReflection(Vector3 normal)

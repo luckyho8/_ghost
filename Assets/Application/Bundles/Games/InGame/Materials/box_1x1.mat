@@ -20,17 +20,17 @@ Material:
   stringTagMap:
     RenderType: Opaque
   disabledShaderPasses: []
-  m_LockedProperties:
+  m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _CornerRadius: 0.2
-    - _TopHighlight: 0.4
-    - _SideDarken: 0.3
-    - _BorderWidth: 0.06
-    - _BorderDarken: 0.55
+    - _BorderDarken: 0.1
+    - _BorderWidth: 0.1
+    - _CornerRadius: 0.1
+    - _SideDarken: 0
+    - _TopHighlight: 0.256
     m_Colors:
     - _BaseColor: {r: 0, g: 1, b: 0.9733625, a: 1}
     - _Color: {r: 0, g: 1, b: 0.9733562, a: 1}

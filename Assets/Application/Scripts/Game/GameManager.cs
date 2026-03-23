@@ -35,6 +35,9 @@ public class GameManager : MonoBehaviour
     [Tooltip("다음 블록 대기 위치 (01=다음, 04=먼 미래)")]
     [SerializeField] private Transform[] nextPoints = new Transform[4];
 
+    [Tooltip("넥스트 슬롯별 미리보기 스케일 (인덱스 0=다음차례, 1~3=이후)")]
+    [SerializeField] private float[] nextPreviewScales = new float[] { 0.8f, 0.6f, 0.6f, 0.6f };
+
     private List<BlockDataContents> nextQueue = new List<BlockDataContents>();
     private List<GameObject> nextQueueObjects = new List<GameObject>();
 
@@ -54,6 +57,9 @@ public class GameManager : MonoBehaviour
 
     [Tooltip("점수 UI (같은 오브젝트에 TextMeshProUGUI + UIBounceEffect)")]
     public UIBounceEffect scoreTextEffect;
+
+    [Tooltip("최고 점수 UI (TextMeshProUGUI)")]
+    [SerializeField] private TextMeshProUGUI bestScore_Txt;
 
     [Tooltip("레벨 UI (같은 오브젝트에 TextMeshProUGUI + UIBounceEffect)")]
     public UIBounceEffect levelTextEffect;
@@ -98,14 +104,30 @@ public class GameManager : MonoBehaviour
     [SerializeField] private float celebrationShrinkDuration = 0.12f;
     // ─────────────────────────────────────────────────────────────────────
 
+    [Header("Ghost Toggle")]
+    [Tooltip("게임 시작 시 고스트피스 활성화 여부 (기본 ON)")]
+    public bool isGhostActive = true;
+    [Tooltip("고스트피스 OFF 상태에서 배치 시 점수 배수")]
+    [SerializeField] private float ghostOffMultiplier = 1.5f;
+
+    [Header("UI (Combo)")]
+    [Tooltip("콤보 표시 TMP 텍스트 (없으면 무시)")]
+    [SerializeField] private TextMeshProUGUI combo_Txt;
+
     private float elapsedTime;
     private float gaugeTimer;
     private float currentFallSpeed;
     private float fallAccumulator;
     private int currentScore;
+    private int bestScore;
+    private const string BestScoreKey = "BestScore";
     private int currentCombo;
+    private float comboTimer = 0f;
+    private const float ComboWindow = 8f;
     private float currentBlockSpawnTime;
     private bool isTimeStopped = false;
+    private bool hardDropped = false;
+    private int softDropCount = 0;
 
     [Header("Level System")]
     public int currentLevel = 1;
@@ -142,19 +164,22 @@ public class GameManager : MonoBehaviour
         currentScore = 0;
         currentCombo = 0;
         currentLevel = 1;
+        bestScore = PlayerPrefs.GetInt(BestScoreKey, 0);
         if (scoreTextEffect != null)
         {
             var st = scoreTextEffect.GetComponent<TMPro.TextMeshProUGUI>();
             if (st != null) st.text = currentScore.ToString("D7");
         }
+        UpdateBestScoreUI();
         UpdateLevelUI();
         SyncGaugeSliderRange();
         SetButtonNavigationToNone();
         BindButtonEvents();
         if (allBlockData != null && spawnPoint != null)
             SpawnBlock();
-        if (itemManager != null && itemManager.isGhostActive)
+        if (isGhostActive)
             RefreshGhostState();
+        UpdateComboUI();
     }
 
     private void SetButtonNavigationToNone()
@@ -219,7 +244,18 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        if (itemManager != null && itemManager.isGhostActive && currentBlock != null)
+        if (comboTimer > 0f)
+        {
+            comboTimer -= dt;
+            if (comboTimer <= 0f)
+            {
+                comboTimer = 0f;
+                currentCombo = 0;
+                UpdateComboUI();
+            }
+        }
+
+        if (isGhostActive && currentBlock != null)
             UpdateGhostPosition();
     }
 
@@ -240,7 +276,23 @@ public class GameManager : MonoBehaviour
         var st = scoreTextEffect.GetComponent<TMPro.TextMeshProUGUI>();
         if (st != null) st.text = currentScore.ToString("D7");
         scoreTextEffect.PlayPopEffect();
+
+        if (currentScore > bestScore)
+        {
+            bestScore = currentScore;
+            PlayerPrefs.SetInt(BestScoreKey, bestScore);
+            UpdateBestScoreUI();
+        }
     }
+
+    private void UpdateBestScoreUI()
+    {
+        if (bestScore_Txt != null)
+            bestScore_Txt.text = bestScore.ToString("D7");
+    }
+
+    private float GetLevelMultiplier()
+        => 1f + (currentLevel - 1) * 0.1f;
 
     private void UpdateLevelUI()
     {
@@ -282,35 +334,44 @@ public class GameManager : MonoBehaviour
     public void MoveLeft()
     {
         if (currentBlock != null) currentBlock.TryMoveLeft();
-        if (itemManager != null && itemManager.isGhostActive && currentBlock != null) UpdateGhostPosition();
+        if (isGhostActive && currentBlock != null) UpdateGhostPosition();
         UpdateLinePreview();
     }
 
     public void MoveRight()
     {
         if (currentBlock != null) currentBlock.TryMoveRight();
-        if (itemManager != null && itemManager.isGhostActive && currentBlock != null) UpdateGhostPosition();
+        if (isGhostActive && currentBlock != null) UpdateGhostPosition();
         UpdateLinePreview();
     }
 
     public void MoveDown()
     {
-        if (currentBlock != null && !currentBlock.TryMoveDown())
-            FreezeCurrentBlock();
-        if (itemManager != null && itemManager.isGhostActive && currentBlock != null) UpdateGhostPosition();
+        if (currentBlock != null)
+        {
+            if (!currentBlock.TryMoveDown())
+                FreezeCurrentBlock();
+            else
+                softDropCount++;
+        }
+        if (isGhostActive && currentBlock != null) UpdateGhostPosition();
         UpdateLinePreview();
     }
 
     public void Rotate()
     {
         if (currentBlock != null) currentBlock.TryRotateWithWallKick();
-        if (itemManager != null && itemManager.isGhostActive && currentBlock != null) UpdateGhostPosition();
+        if (isGhostActive && currentBlock != null) UpdateGhostPosition();
         UpdateLinePreview();
     }
 
     public void HardDrop()
     {
-        if (currentBlock != null) currentBlock.HardDrop();
+        if (currentBlock != null)
+        {
+            hardDropped = true;
+            currentBlock.HardDrop();
+        }
     }
 
     // --- 버튼 OnClick: 동일 로직 호출 후 포커스 해제 ---
@@ -344,11 +405,10 @@ public class GameManager : MonoBehaviour
         ReleaseButtonFocus();
     }
 
-    /// <summary>ItemManager에서 고스트 온/오프 시 호출. 씬의 고스트 표시 상태를 갱신한다.</summary>
+    /// <summary>고스트 표시 상태를 isGhostActive에 맞춰 갱신한다.</summary>
     public void RefreshGhostState()
     {
-        if (itemManager == null) return;
-        if (itemManager.isGhostActive)
+        if (isGhostActive)
         {
             EnsureGhostRoot();
             RebuildGhostFromCurrentBlock();
@@ -360,13 +420,20 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    /// <summary>고스트피스 ON/OFF 토글. ItemManager의 Ghost 버튼에서 호출.</summary>
+    public void ToggleGhostPiece()
+    {
+        isGhostActive = !isGhostActive;
+        RefreshGhostState();
+    }
+
     public bool IsCellOccupied(int gx, int gz)
     {
         return occupiedCells.Contains(new Vector2Int(gx, gz));
     }
 
-    /// <summary>해당 셀의 큐브를 파괴하고 occupiedCells/cellToCube에서 제거. (폭탄 등 아이템용)</summary>
-    public bool TryDestroyAndRemoveCubeAt(int gx, int gz)
+    /// <summary>해당 셀의 큐브를 파괴하고 occupiedCells/cellToCube에서 제거. (폭탄 등 아이템용 + 볼 기믹)</summary>
+    public bool TryDestroyAndRemoveCubeAt(int gx, int gz, bool giveScore = false)
     {
         var cell = new Vector2Int(gx, gz);
         if (!cellToCube.TryGetValue(cell, out Transform t)) return false;
@@ -374,6 +441,11 @@ public class GameManager : MonoBehaviour
         cellToCube.Remove(cell);
         occupiedCells.Remove(cell);
         cellBaseColors.Remove(cell);
+        if (giveScore)
+        {
+            currentScore += Mathf.RoundToInt(50 * GetLevelMultiplier());
+            UpdateScoreUI();
+        }
         return true;
     }
 
@@ -401,7 +473,11 @@ public class GameManager : MonoBehaviour
     {
         if (allBlockData == null || allBlockData.blockList == null || allBlockData.blockList.Count == 0)
             return null;
-        return allBlockData.blockList[Random.Range(0, allBlockData.blockList.Count)];
+        // 레벨별 티어 제한: lv1~3 = T1, lv4~6 = T1+T2, lv7+ = 전체
+        int maxTier = currentLevel <= 3 ? 1 : currentLevel <= 6 ? 2 : 3;
+        var pool = allBlockData.blockList.FindAll(b => b.tier <= maxTier);
+        if (pool.Count == 0) pool = allBlockData.blockList;
+        return pool[Random.Range(0, pool.Count)];
     }
 
     private GameObject CreateBlockContainer(BlockDataContents data, Vector3 position, Quaternion rotation)
@@ -455,10 +531,14 @@ public class GameManager : MonoBehaviour
         {
             if (nextQueueObjects[i] != null && i < nextPoints.Length && nextPoints[i] != null)
             {
+                float s = GetNextScale(i);
+                var c = GetBlockCenter2D(nextQueue[i]);
                 Vector3 pos = nextPoints[i].position;
-                pos.x -= GetCenterOffsetX(nextQueue[i]);
+                pos.x -= c.x * s;
+                pos.z -= c.y * s;
                 nextQueueObjects[i].transform.position = pos;
                 nextQueueObjects[i].transform.rotation = nextPoints[i].rotation;
+                nextQueueObjects[i].transform.localScale = Vector3.one * s;
             }
         }
 
@@ -469,9 +549,13 @@ public class GameManager : MonoBehaviour
         GameObject newObj = null;
         if (lastIdx < nextPoints.Length && nextPoints[lastIdx] != null)
         {
+            float s = GetNextScale(lastIdx);
+            var c = GetBlockCenter2D(newData);
             Vector3 newPos = nextPoints[lastIdx].position;
-            newPos.x -= GetCenterOffsetX(newData);
+            newPos.x -= c.x * s;
+            newPos.z -= c.y * s;
             newObj = CreateBlockContainer(newData, newPos, nextPoints[lastIdx].rotation);
+            if (newObj != null) newObj.transform.localScale = Vector3.one * s;
         }
         nextQueueObjects.Add(newObj);
 
@@ -480,7 +564,7 @@ public class GameManager : MonoBehaviour
         fallAccumulator = 0f;
         currentBlockSpawnTime = Time.time;
 
-        if (itemManager != null && itemManager.isGhostActive && ghostBlockRoot != null)
+        if (isGhostActive && ghostBlockRoot != null)
         {
             RebuildGhostFromCurrentBlock();
             ghostBlockRoot.SetActive(true);
@@ -496,9 +580,13 @@ public class GameManager : MonoBehaviour
             GameObject obj = null;
             if (i < nextPoints.Length && nextPoints[i] != null)
             {
+                float s = GetNextScale(i);
+                var c = GetBlockCenter2D(data);
                 Vector3 pos = nextPoints[i].position;
-                pos.x -= GetCenterOffsetX(data);
+                pos.x -= c.x * s;
+                pos.z -= c.y * s;
                 obj = CreateBlockContainer(data, pos, nextPoints[i].rotation);
+                if (obj != null) obj.transform.localScale = Vector3.one * s;
             }
             nextQueueObjects.Add(obj);
         }
@@ -525,6 +613,10 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>블록의 실제 셀 범위를 계산해 X축 중앙 정렬에 필요한 오프셋 반환. 피봇 위치 무관하게 항상 중앙 스폰.</summary>
+    private float GetNextScale(int slotIndex)
+        => (nextPreviewScales != null && slotIndex < nextPreviewScales.Length)
+            ? nextPreviewScales[slotIndex] : 0.6f;
+
     private int GetCenterOffsetX(BlockDataContents data)
     {
         if (data?.shapeData == null) return 0;
@@ -540,6 +632,28 @@ public class GameManager : MonoBehaviour
         return Mathf.RoundToInt((minCol + maxCol) / 2f);
     }
 
+    /// <summary>넥스트 미리보기용: 블록의 X(col) / Z(row→-Z) 중심 오프셋 반환.</summary>
+    private Vector2 GetBlockCenter2D(BlockDataContents data)
+    {
+        if (data?.shapeData == null) return Vector2.zero;
+        int minCol = int.MaxValue, maxCol = int.MinValue;
+        int minRow = int.MaxValue, maxRow = int.MinValue;
+        for (int i = 0; i < 16 && i < data.shapeData.Length; i++)
+        {
+            if (!data.shapeData[i]) continue;
+            int col = i % 4;
+            int row = i / 4;
+            if (col < minCol) minCol = col;
+            if (col > maxCol) maxCol = col;
+            if (row < minRow) minRow = row;
+            if (row > maxRow) maxRow = row;
+        }
+        if (minCol == int.MaxValue) return Vector2.zero;
+        float xCenter = (minCol + maxCol) / 2f;
+        float zCenter = -(minRow + maxRow) / 2f; // 로우는 -Z 방향이므로 부호 반전
+        return new Vector2(xCenter, zCenter);
+    }
+
     public void FreezeCurrentBlock()
     {
         if (currentBlock == null) return;
@@ -551,9 +665,12 @@ public class GameManager : MonoBehaviour
         // 블록 내려놓기 파티클 (추후 연결)
         SpawnParticleWithColor(fx_BlockPlace, currentBlock.transform.position, lastFrozenBlockColor);
 
-        float placementTime = Time.time - currentBlockSpawnTime;
-        int placementScore = placementTime <= 0.5f ? 300 : placementTime <= 0.8f ? 200 : placementTime <= 1.2f ? 150 : 100;
+        int speedTier = hardDropped ? 5 : (softDropCount > 0 ? 2 : 1);
+        float ghostMult = isGhostActive ? 1f : ghostOffMultiplier;
+        int placementScore = Mathf.RoundToInt(10 * speedTier * GetLevelMultiplier() * ghostMult);
         currentScore += placementScore;
+        hardDropped = false;
+        softDropCount = 0;
         UpdateScoreUI();
 
         RegisterFrozenBlockToGrid(currentBlock);
@@ -651,15 +768,14 @@ public class GameManager : MonoBehaviour
         int clearedLineCount = fullLines.Count;
         if (clearedLineCount > 0)
         {
-            int lineScore = clearedLineCount == 1 ? 100 : clearedLineCount == 2 ? 300 : clearedLineCount == 3 ? 500 : 800;
-            currentScore += lineScore;
-            currentScore += currentCombo * 50;
+            int baseLine = clearedLineCount == 1 ? 100 : clearedLineCount == 2 ? 300 : clearedLineCount == 3 ? 700 : 1500;
+            float mult = GetLevelMultiplier();
+            currentScore += Mathf.RoundToInt(baseLine * mult);
+            currentScore += currentCombo * Mathf.RoundToInt(100 * mult);
             currentCombo++;
+            comboTimer = ComboWindow;
             UpdateScoreUI();
-        }
-        else
-        {
-            currentCombo = 0;
+            UpdateComboUI();
         }
 
         return clearedRows;
@@ -744,7 +860,7 @@ public class GameManager : MonoBehaviour
         fallAccumulator = 0f;
         currentBlockSpawnTime = Time.time;
 
-        if (itemManager != null && itemManager.isGhostActive)
+        if (isGhostActive)
         {
             EnsureGhostRoot();
             RebuildGhostFromCurrentBlock();
@@ -775,54 +891,12 @@ public class GameManager : MonoBehaviour
         currentBlock = container.AddComponent<FallingBlock>();
         currentBlock.Init(this, newData, pivotX, pivotZ);
 
-        if (itemManager != null && itemManager.isGhostActive)
+        if (isGhostActive)
         {
             EnsureGhostRoot();
             RebuildGhostFromCurrentBlock();
             ghostBlockRoot.SetActive(true);
         }
-    }
-
-    /// <summary>Gravity: 아이템 1회 사용. 각 큐브를 최대 dropCells칸만큼 아래로 내려 빈 공간을 압축.</summary>
-    public System.Collections.IEnumerator GravityCompression(float delay, int dropCells = 1)
-    {
-        for (int z = gridMinZ + 1; z <= gridMaxZ; z++)
-        {
-            for (int x = gridMinX; x <= gridMaxX; x++)
-            {
-                var cell = new Vector2Int(x, z);
-                if (!cellToCube.TryGetValue(cell, out Transform t) || t == null) continue;
-
-                int drop = 0;
-                for (int d = 1; d <= dropCells; d++)
-                {
-                    int targetZ = z - d;
-                    if (targetZ < gridMinZ) break;
-                    if (occupiedCells.Contains(new Vector2Int(x, targetZ))) break;
-                    drop = d;
-                }
-                if (drop == 0) continue;
-
-                int newZ = z - drop;
-                cellToCube.Remove(cell);
-                occupiedCells.Remove(cell);
-
-                Color savedColor = cellBaseColors.TryGetValue(cell, out Color c) ? c : Color.white;
-                cellBaseColors.Remove(cell);
-
-                var newCell = new Vector2Int(x, newZ);
-                cellToCube[newCell] = t;
-                occupiedCells.Add(newCell);
-                cellBaseColors[newCell] = savedColor;
-
-                t.position = new Vector3(x, t.position.y, newZ);
-            }
-        }
-        yield return new WaitForSeconds(delay);
-
-        var clearedRows = ClearFullLines();
-        if (clearedRows.Count > 0)
-            yield return StartCoroutine(CelebrationEffect(clearedRows));
     }
 
     // ── 라인 완료 예고 하이라이트 ────────────────────────────────────────
@@ -1068,10 +1142,24 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
+    private void UpdateComboUI()
+    {
+        if (combo_Txt == null) return;
+        if (currentCombo > 1)
+        {
+            combo_Txt.text = $"COMBO ×{currentCombo}";
+            combo_Txt.gameObject.SetActive(true);
+        }
+        else
+        {
+            combo_Txt.gameObject.SetActive(false);
+        }
+    }
+
     private void UpdateGhostPosition()
     {
         if (ghostBlockRoot == null || currentBlock == null) return;
-        if (itemManager == null || !itemManager.isGhostActive) return;
+        if (!isGhostActive) return;
 
         Transform block = currentBlock.transform;
         Quaternion rot = block.rotation;
