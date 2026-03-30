@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -104,11 +105,21 @@ public class GameManager : MonoBehaviour
     [SerializeField] private float celebrationShrinkDuration = 0.12f;
     // ─────────────────────────────────────────────────────────────────────
 
+    [Header("Score Event Data")]
+    [Tooltip("점수 획득 조건별 텍스트/점수 테이블 (SO)")]
+    [SerializeField] private ScoreEventData scoreEventData;
+
     [Header("Ghost Toggle")]
     [Tooltip("게임 시작 시 고스트피스 활성화 여부 (기본 ON)")]
     public bool isGhostActive = true;
     [Tooltip("고스트피스 OFF 상태에서 배치 시 점수 배수")]
-    [SerializeField] private float ghostOffMultiplier = 1.5f;
+    [SerializeField] private float ghostOffMultiplier = 2f;
+
+    [Header("Speed Bonus")]
+    [Tooltip("하드드롭 Fast Drop 판정 시간 (초) — 스폰 후 이 시간 이내 하드드롭 시 보너스")]
+    [SerializeField] private float fastDropThreshold = 0.5f;
+    [Tooltip("Quick Place 판정 시간 (초) — 스폰 후 이 시간 이내 배치 시 보너스")]
+    [SerializeField] private float quickPlaceThreshold = 1.0f;
 
     [Header("UI (Combo)")]
     [Tooltip("콤보 표시 TMP 텍스트 (없으면 무시)")]
@@ -180,6 +191,8 @@ public class GameManager : MonoBehaviour
         if (isGhostActive)
             RefreshGhostState();
         UpdateComboUI();
+        if (UIManager.Instance != null)
+            UIManager.Instance.UpdateGhostToggleUI(isGhostActive);
     }
 
     private void SetButtonNavigationToNone()
@@ -293,6 +306,19 @@ public class GameManager : MonoBehaviour
 
     private float GetLevelMultiplier()
         => 1f + (currentLevel - 1) * 0.1f;
+
+    /// <summary>UIManager를 통해 Plus_Score 연출 + 점수 설명 표시</summary>
+    private void ShowPlusScoreEvent(ScoreEventData.ScoreEventType eventType, int score)
+    {
+        if (UIManager.Instance == null) return;
+        string desc = null;
+        if (scoreEventData != null)
+        {
+            var entry = scoreEventData.GetEntry(eventType);
+            if (entry != null) desc = entry.displayText;
+        }
+        UIManager.Instance.ShowPlusScore(score, desc);
+    }
 
     private void UpdateLevelUI()
     {
@@ -425,6 +451,8 @@ public class GameManager : MonoBehaviour
     {
         isGhostActive = !isGhostActive;
         RefreshGhostState();
+        if (UIManager.Instance != null)
+            UIManager.Instance.UpdateGhostToggleUI(isGhostActive);
     }
 
     public bool IsCellOccupied(int gx, int gz)
@@ -443,7 +471,9 @@ public class GameManager : MonoBehaviour
         cellBaseColors.Remove(cell);
         if (giveScore)
         {
-            currentScore += Mathf.RoundToInt(50 * GetLevelMultiplier());
+            int gained = Mathf.RoundToInt(50 * GetLevelMultiplier());
+            currentScore += gained;
+            ShowPlusScoreEvent(ScoreEventData.ScoreEventType.CellDestroy, gained);
             UpdateScoreUI();
         }
         return true;
@@ -523,6 +553,7 @@ public class GameManager : MonoBehaviour
         int pivotZ = Mathf.RoundToInt(spawnPoint.position.z);
         spawnObj.transform.position = new Vector3(pivotX, spawnPoint.position.y, spawnPoint.position.z);
         spawnObj.transform.rotation = spawnPoint.rotation;
+        spawnObj.transform.localScale = Vector3.one; // Next 큐 프리뷰 스케일 → 원본 복원
         currentBlock = spawnObj.AddComponent<FallingBlock>();
         currentBlock.Init(this, spawnData, pivotX, pivotZ);
 
@@ -665,10 +696,43 @@ public class GameManager : MonoBehaviour
         // 블록 내려놓기 파티클 (추후 연결)
         SpawnParticleWithColor(fx_BlockPlace, currentBlock.transform.position, lastFrozenBlockColor);
 
-        int speedTier = hardDropped ? 5 : (softDropCount > 0 ? 2 : 1);
-        float ghostMult = isGhostActive ? 1f : ghostOffMultiplier;
-        int placementScore = Mathf.RoundToInt(10 * speedTier * GetLevelMultiplier() * ghostMult);
+        float elapsed = Time.time - currentBlockSpawnTime;
+        float mult = GetLevelMultiplier();
+
+        // 기본 배치 점수
+        int basePlace = 10;
+        int placementScore = Mathf.RoundToInt(basePlace * mult);
         currentScore += placementScore;
+
+        // 속도 보너스 판정
+        int speedBonus = 0;
+        if (hardDropped && elapsed <= fastDropThreshold)
+        {
+            // 0.5초 이내 하드드롭 → Fast Drop 보너스
+            speedBonus = Mathf.RoundToInt(50 * mult);
+            currentScore += speedBonus;
+            ShowPlusScoreEvent(ScoreEventData.ScoreEventType.FastDrop, speedBonus);
+        }
+        else if (elapsed <= quickPlaceThreshold)
+        {
+            // 0.5~1초 이내 배치 → Quick Place 보너스
+            speedBonus = Mathf.RoundToInt(20 * mult);
+            currentScore += speedBonus;
+            ShowPlusScoreEvent(ScoreEventData.ScoreEventType.QuickPlace, speedBonus);
+        }
+        else
+        {
+            ShowPlusScoreEvent(ScoreEventData.ScoreEventType.Placement, placementScore);
+        }
+
+        // 고스트 OFF 보너스 (x2)
+        if (!isGhostActive)
+        {
+            int ghostBonus = Mathf.RoundToInt((placementScore + speedBonus) * (ghostOffMultiplier - 1f));
+            currentScore += ghostBonus;
+            ShowPlusScoreEvent(ScoreEventData.ScoreEventType.GhostOffBonus, ghostBonus);
+        }
+
         hardDropped = false;
         softDropCount = 0;
         UpdateScoreUI();
@@ -770,10 +834,18 @@ public class GameManager : MonoBehaviour
         {
             int baseLine = clearedLineCount == 1 ? 100 : clearedLineCount == 2 ? 300 : clearedLineCount == 3 ? 700 : 1500;
             float mult = GetLevelMultiplier();
-            currentScore += Mathf.RoundToInt(baseLine * mult);
-            currentScore += currentCombo * Mathf.RoundToInt(100 * mult);
+            int lineScore = Mathf.RoundToInt(baseLine * mult);
+            int comboScore = currentCombo * Mathf.RoundToInt(100 * mult);
+            int totalGained = lineScore + comboScore;
+            currentScore += totalGained;
             currentCombo++;
             comboTimer = ComboWindow;
+
+            var lineClearType = ScoreEventData.GetLineClearType(clearedLineCount);
+            ShowPlusScoreEvent(lineClearType, totalGained);
+            if (comboScore > 0)
+                ShowPlusScoreEvent(ScoreEventData.ScoreEventType.ComboBonus, comboScore);
+
             UpdateScoreUI();
             UpdateComboUI();
         }
@@ -1034,8 +1106,7 @@ public class GameManager : MonoBehaviour
             go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.transform.position = pos;
             Destroy(go.GetComponent<Collider>());
-            var r = go.GetComponent<Renderer>();
-            if (r != null) r.material.color = color;
+            ApplyBlockColorToCube(go, color);
         }
         return go;
     }
