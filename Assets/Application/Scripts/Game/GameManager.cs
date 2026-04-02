@@ -44,10 +44,10 @@ public class GameManager : MonoBehaviour
 
     [Header("Grid Bounds (Side_Wall)")]
     [Tooltip("그리드 X 최소 (좌측 벽)")]
-    [SerializeField] private int gridMinX = -7;
+    [SerializeField] private int gridMinX = -5;
 
     [Tooltip("그리드 X 최대 (우측 벽)")]
-    [SerializeField] private int gridMaxX = 7;
+    [SerializeField] private int gridMaxX = 4;
 
     [Header("UI (Time & Gauge)")]
     [Tooltip("경과 시간 텍스트 (00:00:00 분:초:밀리초2자리)")]
@@ -79,30 +79,34 @@ public class GameManager : MonoBehaviour
     [SerializeField] private GimmickBallManager gimmickBallManager;
 
     // ── 연출: FX 프리팹 슬롯 ──────────────────────────────────────────────
-    // 파티클 프리팹은 흰색(1,1,1) 기준으로 제작하면 코드가 런타임에 색상을 주입합니다.
-    [Header("연출 - FX 프리팹 (추후 파티클 연결)")]
+    // ── 연출: FX 프리팹 슬롯 ──────────────────────────────────────────────
+    [Header("연출 - FX 프리팹")]
     [Tooltip("블록을 내려놓을 때 발생하는 파티클 (블록 색상 자동 적용)")]
     [SerializeField] private GameObject fx_BlockPlace;
 
-    [Tooltip("완료 예고 줄 하이라이트 파티클 (완료 색상 자동 적용)")]
-    [SerializeField] private GameObject fx_LineHighlight;
-
-    [Tooltip("줄 클리어 순간 발생하는 파티클 (클리어 색상 자동 적용)")]
+    [Tooltip("줄 클리어 파티클 (셀마다 순차 스폰, cube 자식의 색상 제어)")]
     [SerializeField] private GameObject fx_LineClear;
-
-    [Tooltip("셀레브레이션 다다닥 연출에 사용할 큐브 프리팹. 비워두면 기본 큐브로 대체됩니다.")]
-    [SerializeField] private GameObject celebrationCubePrefab;
 
     [Tooltip("콤보 발생 시 파티클 (추후 연결)")]
     [SerializeField] private GameObject fx_Combo;
 
-    [Header("연출 - 셀레브레이션 타이밍")]
-    [Tooltip("다다닥 큐브 스폰 간격 (초)")]
-    [SerializeField] private float celebrationSpawnInterval = 0.04f;
-    [Tooltip("다다닥 큐브 축소 시작 간격 (초)")]
-    [SerializeField] private float celebrationShrinkInterval = 0.03f;
-    [Tooltip("큐브 하나가 축소되어 사라지는 시간 (초)")]
-    [SerializeField] private float celebrationShrinkDuration = 0.12f;
+    [Header("연출 - 라인클리어 타이밍")]
+    [Tooltip("셀 간 파티클 스폰 간격 (초) — 순차 파괴 + 파티클")]
+    [SerializeField] private float lineClearSpawnInterval = 0.04f;
+    [Tooltip("라인클리어 시 카메라 셰이크 여부")]
+    [SerializeField] private bool lineClearShake = true;
+    [Tooltip("라인클리어 셰이크 강도")]
+    [SerializeField] private float lineClearShakeIntensity = 0.2f;
+    [Tooltip("라인클리어 셰이크 지속 시간")]
+    [SerializeField] private float lineClearShakeDuration = 0.25f;
+
+    [Header("연출 - 하드드롭 셰이크")]
+    [Tooltip("하드드롭 시 카메라 셰이크 여부")]
+    [SerializeField] private bool hardDropShake = true;
+    [Tooltip("하드드롭 셰이크 강도")]
+    [SerializeField] private float hardDropShakeIntensity = 0.1f;
+    [Tooltip("하드드롭 셰이크 지속 시간")]
+    [SerializeField] private float hardDropShakeDuration = 0.12f;
     // ─────────────────────────────────────────────────────────────────────
 
     [Header("Score Event Data")]
@@ -397,6 +401,8 @@ public class GameManager : MonoBehaviour
         {
             hardDropped = true;
             currentBlock.HardDrop();
+            if (hardDropShake && VFXManager.Instance != null)
+                VFXManager.Instance.Shake(hardDropShakeIntensity, hardDropShakeDuration);
         }
     }
 
@@ -768,70 +774,14 @@ public class GameManager : MonoBehaviour
     private System.Collections.IEnumerator LineClearThenSpawn()
     {
         yield return new WaitForSeconds(0.1f);
-        var clearedRows = ClearFullLines();
-        if (clearedRows.Count > 0)
-            yield return StartCoroutine(CelebrationEffect(clearedRows));
-        SpawnBlock();
-    }
 
-    /// <summary>꽉 찬 줄을 탐색·파괴·하강 처리. 클리어된 줄의 (Z좌표, 색상, Y높이) 목록 반환.</summary>
-    private List<(int z, Color color, float y)> ClearFullLines()
-    {
-        var fullLines = new List<int>();
-        for (int z = gridMinZ; z <= gridMaxZ; z++)
-        {
-            bool full = true;
-            for (int x = gridMinX; x <= gridMaxX; x++)
-            {
-                if (!occupiedCells.Contains(new Vector2Int(x, z))) { full = false; break; }
-            }
-            if (full) fullLines.Add(z);
-        }
-
-        var clearedRows = new List<(int z, Color color, float y)>();
+        // 1) 꽉 찬 줄 탐색 (파괴하지 않음)
+        var fullLines = DetectFullLines();
 
         if (fullLines.Count > 0)
         {
-            foreach (int z in fullLines)
-            {
-                // 클리어 전 색상과 Y 높이 캡처
-                Color rowColor = lastFrozenBlockColor;
-                float rowY = 0f;
-                for (int x = gridMinX; x <= gridMaxX; x++)
-                {
-                    var sampleCell = new Vector2Int(x, z);
-                    if (cellToCube.TryGetValue(sampleCell, out Transform sample) && sample != null)
-                    {
-                        rowY = sample.position.y;
-                        break;
-                    }
-                }
-                clearedRows.Add((z, rowColor, rowY));
-
-                // 큐브 파괴
-                for (int x = gridMinX; x <= gridMaxX; x++)
-                {
-                    var cell = new Vector2Int(x, z);
-                    if (cellToCube.TryGetValue(cell, out Transform t))
-                    {
-                        // 클리어 파티클 (추후 연결)
-                        if (t != null)
-                        {
-                            SpawnParticleWithColor(fx_LineClear, t.position, rowColor);
-                            Destroy(t.gameObject);
-                        }
-                        cellToCube.Remove(cell);
-                        occupiedCells.Remove(cell);
-                        cellBaseColors.Remove(cell);
-                    }
-                }
-            }
-            ShiftRowsDown(fullLines);
-        }
-
-        int clearedLineCount = fullLines.Count;
-        if (clearedLineCount > 0)
-        {
+            // 2) 점수 계산
+            int clearedLineCount = fullLines.Count;
             int baseLine = clearedLineCount == 1 ? 100 : clearedLineCount == 2 ? 300 : clearedLineCount == 3 ? 700 : 1500;
             float mult = GetLevelMultiplier();
             int lineScore = Mathf.RoundToInt(baseLine * mult);
@@ -848,9 +798,37 @@ public class GameManager : MonoBehaviour
 
             UpdateScoreUI();
             UpdateComboUI();
+
+            // 3) 볼 일시 정지
+            if (gimmickBallManager != null) gimmickBallManager.PauseBalls();
+
+            // 4) 순차 파괴 + 파티클 연출 (셀 하나씩 사라지면서 파티클)
+            yield return StartCoroutine(LineClearSequentialEffect(fullLines));
+
+            // 5) 블록 하강 (연출 완료 후)
+            ShiftRowsDown(fullLines);
+
+            // 6) 볼 재개
+            if (gimmickBallManager != null) gimmickBallManager.ResumeBalls();
         }
 
-        return clearedRows;
+        SpawnBlock();
+    }
+
+    /// <summary>꽉 찬 줄만 탐색, 파괴하지 않음</summary>
+    private List<int> DetectFullLines()
+    {
+        var fullLines = new List<int>();
+        for (int z = gridMinZ; z <= gridMaxZ; z++)
+        {
+            bool full = true;
+            for (int x = gridMinX; x <= gridMaxX; x++)
+            {
+                if (!occupiedCells.Contains(new Vector2Int(x, z))) { full = false; break; }
+            }
+            if (full) fullLines.Add(z);
+        }
+        return fullLines;
     }
 
     /// <summary>데이터 주도형: 바닥부터 최상단 Z 순회, 삭제된 줄 수(shiftCount) 누적 후 위쪽 라인만 하강. (라인클리어·폭탄 아이템 등에서 호출)</summary>
@@ -1038,8 +1016,7 @@ public class GameManager : MonoBehaviour
                 // 완료 색상으로 변경
                 ApplyBlockColorToCube(t.gameObject, highlightColor);
 
-                // 하이라이트 파티클 (추후 연결) — 위치당 1회만 스폰하려면 별도 관리 필요
-                // SpawnParticleWithColor(fx_LineHighlight, t.position, highlightColor);
+                // 하이라이트 파티클 (추후 연결)
             }
         }
     }
@@ -1056,92 +1033,75 @@ public class GameManager : MonoBehaviour
         highlightedRows.Clear();
     }
 
-    // ── 셀레브레이션 연출 ────────────────────────────────────────────────
-
-    /// <summary>줄 클리어 후 다다닥~ 나타났다가 다다닥~ 사라지는 셀레브레이션 연출.</summary>
-    private System.Collections.IEnumerator CelebrationEffect(List<(int z, Color color, float y)> clearedRows)
-    {
-        int totalCols = gridMaxX - gridMinX + 1;
-        var spawnedCubes = new List<(GameObject go, int x)>();
-
-        // 오른쪽 → 왼쪽으로 순차 스폰
-        for (int col = 0; col < totalCols; col++)
-        {
-            int x = gridMaxX - col;
-            foreach (var (z, color, y) in clearedRows)
-            {
-                var go = CreateCelebrationCube(new Vector3(x, y, z), color);
-                spawnedCubes.Add((go, x));
-            }
-            yield return new WaitForSeconds(celebrationSpawnInterval);
-        }
-
-        yield return new WaitForSeconds(0.08f);
-
-        // 왼쪽 → 오른쪽으로 순차 축소
-        for (int x = gridMinX; x <= gridMaxX; x++)
-        {
-            foreach (var (go, gx) in spawnedCubes)
-            {
-                if (gx == x && go != null)
-                    StartCoroutine(ShrinkAndDestroy(go, celebrationShrinkDuration));
-            }
-            yield return new WaitForSeconds(celebrationShrinkInterval);
-        }
-
-        yield return new WaitForSeconds(celebrationShrinkDuration);
-    }
-
-    /// <summary>셀레브레이션용 임시 큐브 생성. 프리팹 미할당 시 기본 큐브로 대체.</summary>
-    private GameObject CreateCelebrationCube(Vector3 pos, Color color)
-    {
-        GameObject go;
-        if (celebrationCubePrefab != null)
-        {
-            go = Instantiate(celebrationCubePrefab, pos, Quaternion.identity);
-            ApplyBlockColorToCube(go, color);
-        }
-        else
-        {
-            go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.transform.position = pos;
-            Destroy(go.GetComponent<Collider>());
-            ApplyBlockColorToCube(go, color);
-        }
-        return go;
-    }
-
-    private System.Collections.IEnumerator ShrinkAndDestroy(GameObject go, float duration)
-    {
-        if (go == null) yield break;
-        float elapsed = 0f;
-        Vector3 startScale = go.transform.localScale;
-        while (elapsed < duration)
-        {
-            if (go == null) yield break;
-            elapsed += Time.deltaTime;
-            go.transform.localScale = Vector3.Lerp(startScale, Vector3.zero, elapsed / duration);
-            yield return null;
-        }
-        if (go != null) Destroy(go);
-    }
-
-    // ── 파티클 공통 헬퍼 ────────────────────────────────────────────────
+    // ── 라인클리어 순차 연출 ────────────────────────────────────────────
 
     /// <summary>
-    /// 파티클 프리팹을 지정 위치에 스폰하고 색상을 주입합니다.
-    /// 프리팹의 모든 ParticleSystem.main.startColor에 color가 적용됩니다.
-    /// 프리팹은 흰색(1,1,1) 기준으로 제작하세요.
+    /// 셀을 하나씩 순차 파괴하면서 파티클 스폰.
+    /// 1줄: 왼→오른쪽. 2줄 이상: 아랫줄 왼→오, 윗줄 오→왼 교차 (동시 진행).
     /// </summary>
+    private System.Collections.IEnumerator LineClearSequentialEffect(List<int> fullLines)
+    {
+        if (fx_LineClear == null && VFXManager.Instance == null) yield break;
+
+        // z좌표 오름차순 정렬 (아래부터)
+        fullLines.Sort();
+
+        int totalCols = gridMaxX - gridMinX + 1;
+        float perCellDelay = lineClearSpawnInterval;
+
+        // 카메라 셰이크
+        if (lineClearShake && VFXManager.Instance != null)
+            VFXManager.Instance.Shake(lineClearShakeIntensity, lineClearShakeDuration);
+
+        // 셀 단위 순차 처리
+        for (int col = 0; col < totalCols; col++)
+        {
+            for (int lineIdx = 0; lineIdx < fullLines.Count; lineIdx++)
+            {
+                int z = fullLines[lineIdx];
+                // 교차 방향: 짝수 줄(0,2,4..) 왼→오, 홀수 줄(1,3,5..) 오→왼
+                int x = (lineIdx % 2 == 0) ? (gridMinX + col) : (gridMaxX - col);
+
+                var cell = new Vector2Int(x, z);
+                DestroyCellWithParticle(cell);
+            }
+
+            if (perCellDelay > 0f)
+                yield return new WaitForSeconds(perCellDelay);
+        }
+    }
+
+    /// <summary>셀의 큐브를 파괴하고 해당 위치에 파티클 스폰</summary>
+    private void DestroyCellWithParticle(Vector2Int cell)
+    {
+        Color cellColor = Color.white;
+        if (cellBaseColors.TryGetValue(cell, out Color c))
+            cellColor = c;
+
+        float y = 0f;
+        if (cellToCube.TryGetValue(cell, out Transform t) && t != null)
+        {
+            y = t.position.y;
+            Destroy(t.gameObject);
+        }
+
+        cellToCube.Remove(cell);
+        occupiedCells.Remove(cell);
+        cellBaseColors.Remove(cell);
+
+        // 파티클 스폰 (cube 자식 색상만 셀 색상으로)
+        if (fx_LineClear != null && VFXManager.Instance != null)
+        {
+            Vector3 pos = new Vector3(cell.x, y, cell.y);
+            VFXManager.Instance.Spawn(fx_LineClear, pos, "cube", cellColor);
+        }
+    }
+
+    /// <summary>VFXManager를 통해 파티클 스폰 (풀링)</summary>
     private void SpawnParticleWithColor(GameObject prefab, Vector3 pos, Color color)
     {
-        if (prefab == null) return;
-        var go = Instantiate(prefab, pos, Quaternion.identity);
-        foreach (var ps in go.GetComponentsInChildren<ParticleSystem>(true))
-        {
-            var main = ps.main;
-            main.startColor = color;
-        }
+        if (prefab == null || VFXManager.Instance == null) return;
+        VFXManager.Instance.Spawn(prefab, pos, color);
     }
 
     // --- Ghost Piece ---

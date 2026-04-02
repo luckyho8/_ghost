@@ -145,6 +145,24 @@ public class GimmickBallManager : MonoBehaviour
         return new Vector3(centerX + index * 1.5f, ballY, centerZ);
     }
 
+    /// <summary>모든 볼의 물리를 일시 정지</summary>
+    public void PauseBalls()
+    {
+        foreach (var ball in activeBalls)
+        {
+            if (ball != null) ball.SetPaused(true);
+        }
+    }
+
+    /// <summary>모든 볼의 물리를 재개</summary>
+    public void ResumeBalls()
+    {
+        foreach (var ball in activeBalls)
+        {
+            if (ball != null) ball.SetPaused(false);
+        }
+    }
+
     public void ClearBalls()
     {
         foreach (var ball in activeBalls)

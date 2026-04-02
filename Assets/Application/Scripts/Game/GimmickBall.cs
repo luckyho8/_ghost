@@ -20,6 +20,8 @@ public class GimmickBall : MonoBehaviour
     private Transform meshRoot;
     private Rigidbody rb;
     private Vector3 moveDirection;
+    private bool isPaused;
+    private Vector3 savedVelocity;
 
     // 스케일 펀치
     private float originalScale = 1f;
@@ -84,9 +86,28 @@ public class GimmickBall : MonoBehaviour
             rb.velocity = rb.velocity.normalized * speed;
     }
 
-    private void FixedUpdate()
+    /// <summary>라인클리어 등 연출 중 볼 일시 정지/재개</summary>
+    public void SetPaused(bool paused)
     {
         if (rb == null) return;
+        if (paused && !isPaused)
+        {
+            savedVelocity = rb.velocity;
+            rb.velocity = Vector3.zero;
+            rb.isKinematic = true;
+            isPaused = true;
+        }
+        else if (!paused && isPaused)
+        {
+            rb.isKinematic = false;
+            rb.velocity = savedVelocity;
+            isPaused = false;
+        }
+    }
+
+    private void FixedUpdate()
+    {
+        if (rb == null || isPaused) return;
 
         // 속도 일정하게 유지
         Vector3 vel = rb.velocity;
