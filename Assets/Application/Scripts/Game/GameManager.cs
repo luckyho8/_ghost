@@ -652,13 +652,20 @@ public class GameManager : MonoBehaviour
             UIManager.Instance.OpenGameOver(currentScore, currentLevel, sessionStartBest, sessionStartLast, sessionStartTotal);
     }
 
+    private bool _warnedLevelManagerMissing;
     private BlockDataContents GetRandomBlockData()
     {
         if (allBlockData == null || allBlockData.blockList == null || allBlockData.blockList.Count == 0)
             return null;
         if (levelManager != null)
             return levelManager.PickRandomBlock(currentLevel, allBlockData.blockList);
-        // 폴백: LevelManager 미연결 시 단순 균등 추첨
+        // 폴백: LevelManager 미연결 시 단순 균등 추첨 — 티어 가중치 무시됨
+        if (!_warnedLevelManagerMissing)
+        {
+            _warnedLevelManagerMissing = true;
+            Debug.LogWarning("[GameManager] LevelManager 슬롯이 비어있어 티어 가중치가 무시됩니다. " +
+                "Inspector → GameManager → Level / Difficulty → Level Manager 연결 후 씬 저장(Ctrl+S) 필요.");
+        }
         return allBlockData.blockList[Random.Range(0, allBlockData.blockList.Count)];
     }
 

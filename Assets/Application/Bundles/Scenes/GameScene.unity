@@ -1371,7 +1371,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   popupPausePrefab: {fileID: 8917678326779450010, guid: 09c1444ee1d820f419b6fb4e6c472265,
     type: 3}
-  popupWinPrefab: {fileID: 0}
+  popupWinPrefab: {fileID: 8917678326779450010, guid: 09c1444ee1d820f419b6fb4e6c472265,
+    type: 3}
   popupFailPrefab: {fileID: 0}
   popupGameOverPrefab: {fileID: 6311812125158786214, guid: 8194d252b0dd0d647814d5e02d4ba84d,
     type: 3}
@@ -2256,6 +2257,26 @@ PrefabInstance:
       propertyPath: m_AnchoredPosition.y
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 7289776166138724386, guid: 9cd51a0c313114b458a3004d25e0e946,
+        type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
+      value: 
+      objectReference: {fileID: 1118973839}
+    - target: {fileID: 7289776166138724386, guid: 9cd51a0c313114b458a3004d25e0e946,
+        type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
+      value: OpenPause
+      objectReference: {fileID: 0}
+    - target: {fileID: 7289776166138724386, guid: 9cd51a0c313114b458a3004d25e0e946,
+        type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_TargetAssemblyTypeName
+      value: UIManager, Assembly-CSharp
+      objectReference: {fileID: 0}
+    - target: {fileID: 7289776166138724386, guid: 9cd51a0c313114b458a3004d25e0e946,
+        type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgumentAssemblyTypeName
+      value: UnityEngine.Object, UnityEngine
+      objectReference: {fileID: 0}
     - target: {fileID: 8513305011042935716, guid: 9cd51a0c313114b458a3004d25e0e946,
         type: 3}
       propertyPath: m_Pivot.x
@@ -2733,7 +2754,7 @@ MonoBehaviour:
   softDropRepeatInterval: 0.04
   itemManager: {fileID: 1383220958}
   gimmickBallManager: {fileID: 652649573}
-  levelManager: {fileID: 0}
+  levelManager: {fileID: 1987524972}
   fx_BlockPlace: {fileID: 0}
   fx_LineClear: {fileID: 2054395920068991093, guid: a682d4ea627ddc5479ddbd00bdca7cb9,
     type: 3}
