@@ -28,6 +28,17 @@ public class GimmickBall : MonoBehaviour
     private float originalScale = 1f;
     private Coroutine punchCoroutine;
 
+    // TimeStop 비주얼 (반투명 + 콜라이더 OFF)
+    private Collider mainCollider;
+    private Renderer[] cachedRenderers;
+    private MaterialPropertyBlock mpb;
+    private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+    private Coroutine timeStopFadeCo;
+    private bool isTimeStopActive;
+    private float currentVisualAlpha = 1f;
+    private const float TimeStopGhostAlpha = 0.3f;
+    private const float TimeStopFadeDuration = 0.2f;
+
     // 레이어 번호 (Inspector에서 설정한 값과 일치해야 함)
     private int wallLayer;
     private int blockLayer;
@@ -123,6 +134,62 @@ public class GimmickBall : MonoBehaviour
             rb.isKinematic = false;
             rb.velocity = savedVelocity;
             isPaused = false;
+        }
+    }
+
+    /// <summary>TimeStop 아이템: 물리 정지 + 콜라이더 OFF + 반투명 페이드. 게임 진행 방해 없음.</summary>
+    public void SetTimeStopState(bool active)
+    {
+        if (isTimeStopActive == active) return;
+        isTimeStopActive = active;
+
+        SetPaused(active);
+
+        if (mainCollider == null) mainCollider = GetComponent<Collider>();
+        if (mainCollider != null) mainCollider.enabled = !active;
+
+        if (timeStopFadeCo != null) StopCoroutine(timeStopFadeCo);
+        if (gameObject.activeInHierarchy)
+            timeStopFadeCo = StartCoroutine(FadeAlpha(active ? TimeStopGhostAlpha : 1f, TimeStopFadeDuration));
+    }
+
+    private IEnumerator FadeAlpha(float target, float duration)
+    {
+        EnsureRendererCache();
+        float start = currentVisualAlpha;
+        float t = 0f;
+        while (t < duration)
+        {
+            t += Time.deltaTime;
+            float a = Mathf.Lerp(start, target, Mathf.Clamp01(t / duration));
+            ApplyAlphaToRenderers(a);
+            yield return null;
+        }
+        ApplyAlphaToRenderers(target);
+        timeStopFadeCo = null;
+    }
+
+    private void EnsureRendererCache()
+    {
+        if (cachedRenderers == null) cachedRenderers = GetComponentsInChildren<Renderer>(true);
+        if (mpb == null) mpb = new MaterialPropertyBlock();
+    }
+
+    private void ApplyAlphaToRenderers(float alpha)
+    {
+        currentVisualAlpha = alpha;
+        if (cachedRenderers == null) return;
+        for (int i = 0; i < cachedRenderers.Length; i++)
+        {
+            var r = cachedRenderers[i];
+            if (r == null) continue;
+            r.GetPropertyBlock(mpb);
+            Color c = (r.sharedMaterial != null && r.sharedMaterial.HasProperty(BaseColorId))
+                ? r.sharedMaterial.GetColor(BaseColorId)
+                : Color.white;
+            c.a = alpha;
+            mpb.SetColor(BaseColorId, c);
+            r.SetPropertyBlock(mpb);
         }
     }
 

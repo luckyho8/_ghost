@@ -15,17 +15,6 @@ public class GameManager : MonoBehaviour
 
     private const int MIN_GRID_Z = -12;
 
-    [Header("Game Settings (Test Friendly)")]
-    [Tooltip("기본 낙하 속도 (한 칸 이동까지의 초)")]
-    public float baseFallSpeed = 1f;
-
-    [Tooltip("속도 상승 시 적용되는 배율 (예: 0.9 = 더 빨라짐)")]
-    [Range(0.5f, 1f)]
-    public float speedMultiplier = 0.9f;
-
-    [Tooltip("속도 상승 주기 (초)")]
-    public float speedUpInterval = 40f;
-
     [Header("Data & Spawn")]
     [Tooltip("블록 데이터 SO")]
     public AllBlockData allBlockData;
@@ -53,7 +42,7 @@ public class GameManager : MonoBehaviour
     [Tooltip("경과 시간 텍스트 (00:00:00 분:초:밀리초2자리)")]
     [SerializeField] private TextMeshProUGUI time_Txt;
 
-    [Tooltip("속도 상승 게이지 (Slider.value가 speedUpInterval에 맞춰 감소)")]
+    [Tooltip("속도 상승 게이지 (Slider.maxValue/value는 현재 레벨의 duration에 맞춰 자동 갱신)")]
     [SerializeField] private Slider gauge_Bar;
 
     [Tooltip("점수 UI (같은 오브젝트에 TextMeshProUGUI + UIBounceEffect)")]
@@ -72,11 +61,21 @@ public class GameManager : MonoBehaviour
     [SerializeField] private Button Btn_Rotate;
     [SerializeField] private Button Btn_HardDrop;
 
+    [Header("Soft Drop Repeat (Btn_Down 홀드 / S키 홀드 공통)")]
+    [Tooltip("길게 누르기 판정까지 대기 시간 (초). 짧을수록 빨리 다다다 시작.")]
+    [SerializeField] private float softDropInitialDelay = 0.18f;
+    [Tooltip("반복 발화 간격 (초). 짧을수록 빠르게 떨어짐.")]
+    [SerializeField] private float softDropRepeatInterval = 0.04f;
+
     [Header("Item (Ghost 등)")]
     [SerializeField] private ItemManager itemManager;
 
     [Header("Gimmick Ball")]
     [SerializeField] private GimmickBallManager gimmickBallManager;
+
+    [Header("Level / Difficulty")]
+    [Tooltip("레벨별 duration / fallSpeed / 티어 가중치를 공급. 비어있으면 안전 기본값 사용.")]
+    [SerializeField] private LevelManager levelManager;
 
     // ── 연출: FX 프리팹 슬롯 ──────────────────────────────────────────────
     // ── 연출: FX 프리팹 슬롯 ──────────────────────────────────────────────
@@ -107,6 +106,22 @@ public class GameManager : MonoBehaviour
     [SerializeField] private float hardDropShakeIntensity = 0.1f;
     [Tooltip("하드드롭 셰이크 지속 시간")]
     [SerializeField] private float hardDropShakeDuration = 0.12f;
+
+    [Header("연출 - 폭탄 아이템")]
+    [Tooltip("폭발 시 카메라 셰이크 여부 (쾅~ 느낌)")]
+    [SerializeField] private bool bombExplodeShake = true;
+    [Tooltip("폭발 셰이크 강도 (쾅~ 강하게)")]
+    [SerializeField] private float bombExplodeShakeIntensity = 0.4f;
+    [Tooltip("폭발 셰이크 지속 시간")]
+    [SerializeField] private float bombExplodeShakeDuration = 0.35f;
+    [Tooltip("폭발 후 위 블록들이 빈 자리로 떨어지기까지 대기 시간 (초)")]
+    [SerializeField] private float bombFallDelay = 0.5f;
+    [Tooltip("블록 착지 셰이크 여부 (쿵~ 느낌)")]
+    [SerializeField] private bool bombLandShake = true;
+    [Tooltip("블록 착지 셰이크 강도 (쿵~ 무게감)")]
+    [SerializeField] private float bombLandShakeIntensity = 0.25f;
+    [Tooltip("블록 착지 셰이크 지속 시간")]
+    [SerializeField] private float bombLandShakeDuration = 0.2f;
     // ─────────────────────────────────────────────────────────────────────
 
     [Header("Score Event Data")]
@@ -132,6 +147,7 @@ public class GameManager : MonoBehaviour
     private float elapsedTime;
     private float gaugeTimer;
     private float currentFallSpeed;
+    private float currentLevelDuration = 40f;
     private float fallAccumulator;
     private int currentScore;
     private int bestScore;
@@ -177,13 +193,14 @@ public class GameManager : MonoBehaviour
 
     private void Start()
     {
-        currentFallSpeed = baseFallSpeed;
+        currentLevel = 1;
+        currentFallSpeed = ResolveFallSpeed(currentLevel);
+        currentLevelDuration = ResolveDuration(currentLevel);
         gaugeTimer = 0f;
         elapsedTime = 0f;
         fallAccumulator = 0f;
         currentScore = 0;
         currentCombo = 0;
-        currentLevel = 1;
         bestScore = PlayerPrefs.GetInt(BestScoreKey, 0);
         sessionStartBest = bestScore;
         sessionStartLast = PlayerPrefs.GetInt(LastPlayKey, 0);
@@ -224,16 +241,28 @@ public class GameManager : MonoBehaviour
         if (gauge_Bar != null)
         {
             gauge_Bar.minValue = 0f;
-            gauge_Bar.maxValue = speedUpInterval;
-            gauge_Bar.value = speedUpInterval;
+            gauge_Bar.maxValue = currentLevelDuration;
+            gauge_Bar.value = currentLevelDuration;
         }
     }
+
+    private float ResolveDuration(int level)
+        => levelManager != null ? levelManager.GetDurationForLevel(level) : 40f;
+
+    private float ResolveFallSpeed(int level)
+        => levelManager != null ? levelManager.GetFallSpeedForLevel(level) : 1f;
 
     private void BindButtonEvents()
     {
         if (Btn_Left != null) Btn_Left.onClick.AddListener(Btn_Left_Press);
         if (Btn_Right != null) Btn_Right.onClick.AddListener(Btn_Right_Press);
-        if (Btn_Down != null) Btn_Down.onClick.AddListener(Btn_Down_Press);
+        if (Btn_Down != null)
+        {
+            var repeat = Btn_Down.gameObject.GetComponent<UIRepeatButton>();
+            if (repeat == null) repeat = Btn_Down.gameObject.AddComponent<UIRepeatButton>();
+            repeat.SetTiming(softDropInitialDelay, softDropRepeatInterval);
+            repeat.SetAction(Btn_Down_Press);
+        }
         if (Btn_Rotate != null) Btn_Rotate.onClick.AddListener(Btn_Rotate_Press);
         if (Btn_HardDrop != null) Btn_HardDrop.onClick.AddListener(Btn_HardDrop_Press);
     }
@@ -246,17 +275,20 @@ public class GameManager : MonoBehaviour
         {
             if (Input.GetKeyDown(KeyCode.A)) MoveLeft();
             if (Input.GetKeyDown(KeyCode.D)) MoveRight();
-            if (Input.GetKeyDown(KeyCode.S)) MoveDown();
+            HandleSoftDropKey();
             if (Input.GetKeyDown(KeyCode.W)) Rotate();
             if (Input.GetKeyDown(KeyCode.G)) HardDrop();
         }
 
         float dt = Time.deltaTime;
-        elapsedTime += dt;
+        if (!isTimeStopped)
+        {
+            elapsedTime += dt;
+            UpdateGaugeAndSpeedUp(dt);
+        }
         UpdateTimeUI();
-        UpdateGaugeAndSpeedUp(dt);
 
-        if (currentBlock != null && !isTimeStopped)
+        if (currentBlock != null)
         {
             fallAccumulator += dt;
             if (fallAccumulator >= currentFallSpeed)
@@ -269,7 +301,7 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        if (comboTimer > 0f)
+        if (!isTimeStopped && comboTimer > 0f)
         {
             comboTimer -= dt;
             if (comboTimer <= 0f)
@@ -278,14 +310,10 @@ public class GameManager : MonoBehaviour
                 currentCombo = 0;
                 UpdateComboUI();
                 if (UIManager.Instance != null)
-                {
-                    UIManager.Instance.UpdateComboTimerBar(0f);
                     UIManager.Instance.UpdateComboTimerText(0f);
-                }
             }
             else if (UIManager.Instance != null)
             {
-                UIManager.Instance.UpdateComboTimerBar(comboTimer / ComboWindow);
                 UIManager.Instance.UpdateComboTimerText(comboTimer);
             }
         }
@@ -355,17 +383,21 @@ public class GameManager : MonoBehaviour
         gaugeTimer += dt;
         if (gauge_Bar != null)
         {
-            gauge_Bar.maxValue = speedUpInterval;
-            gauge_Bar.value = Mathf.Clamp(speedUpInterval - gaugeTimer, 0f, speedUpInterval);
+            gauge_Bar.maxValue = currentLevelDuration;
+            gauge_Bar.value = Mathf.Clamp(currentLevelDuration - gaugeTimer, 0f, currentLevelDuration);
         }
 
-        if (gaugeTimer >= speedUpInterval)
+        if (gaugeTimer >= currentLevelDuration)
         {
             gaugeTimer = 0f;
-            currentFallSpeed *= speedMultiplier;
-            if (currentFallSpeed < 0.05f) currentFallSpeed = 0.05f;
-            if (gauge_Bar != null) gauge_Bar.value = speedUpInterval;
             currentLevel++;
+            currentLevelDuration = ResolveDuration(currentLevel);
+            currentFallSpeed = Mathf.Max(0.05f, ResolveFallSpeed(currentLevel));
+            if (gauge_Bar != null)
+            {
+                gauge_Bar.maxValue = currentLevelDuration;
+                gauge_Bar.value = currentLevelDuration;
+            }
             UpdateLevelUI();
             if (gimmickBallManager != null)
                 gimmickBallManager.OnLevelChanged(currentLevel);
@@ -404,6 +436,28 @@ public class GameManager : MonoBehaviour
         }
         if (isGhostActive && currentBlock != null) UpdateGhostPosition();
         UpdateLinePreview();
+    }
+
+    private float sKeyHoldTime;
+    private float sKeyNextRepeatAt;
+
+    private void HandleSoftDropKey()
+    {
+        if (Input.GetKeyDown(KeyCode.S))
+        {
+            MoveDown();
+            sKeyHoldTime = 0f;
+            sKeyNextRepeatAt = softDropInitialDelay;
+        }
+        else if (Input.GetKey(KeyCode.S))
+        {
+            sKeyHoldTime += Time.deltaTime;
+            if (sKeyHoldTime >= sKeyNextRepeatAt)
+            {
+                MoveDown();
+                sKeyNextRepeatAt += softDropRepeatInterval;
+            }
+        }
     }
 
     public void Rotate()
@@ -484,6 +538,46 @@ public class GameManager : MonoBehaviour
         return occupiedCells.Contains(new Vector2Int(gx, gz));
     }
 
+    /// <summary>폭탄 아이템: 하단 N줄 동시 폭발(셀 색상 파티클) → bombFallDelay 후 위 블록 낙하 → 두 번째 셰이크.</summary>
+    public void UseBomb(int rowCount)
+    {
+        if (rowCount <= 0) return;
+        StartCoroutine(BombRoutine(rowCount));
+    }
+
+    private System.Collections.IEnumerator BombRoutine(int rowCount)
+    {
+        var clearedLines = new List<int>(rowCount);
+        int maxZ = gridMinZ + rowCount;
+
+        // 1) 폭발: 모든 셀 동시 파괴 + 셀 색상 파티클 (빈 셀은 스킵)
+        for (int z = gridMinZ; z < maxZ; z++)
+        {
+            clearedLines.Add(z);
+            for (int x = gridMinX; x <= gridMaxX; x++)
+            {
+                var cell = new Vector2Int(x, z);
+                if (occupiedCells.Contains(cell))
+                    DestroyCellWithParticle(cell);
+            }
+        }
+
+        // 2) 폭발 셰이크 (쾅~)
+        if (bombExplodeShake && VFXManager.Instance != null)
+            VFXManager.Instance.Shake(bombExplodeShakeIntensity, bombExplodeShakeDuration);
+
+        // 3) 위 블록들이 떨어지기 전 대기
+        if (bombFallDelay > 0f)
+            yield return new WaitForSeconds(bombFallDelay);
+
+        // 4) 빈 자리 메우기 (위 블록들 하강)
+        ShiftRowsDown(clearedLines);
+
+        // 5) 착지 셰이크 (쿵~)
+        if (bombLandShake && VFXManager.Instance != null)
+            VFXManager.Instance.Shake(bombLandShakeIntensity, bombLandShakeDuration);
+    }
+
     /// <summary>해당 셀의 큐브를 파괴하고 occupiedCells/cellToCube에서 제거. (폭탄 등 아이템용 + 볼 기믹)</summary>
     public bool TryDestroyAndRemoveCubeAt(int gx, int gz, bool giveScore = false)
     {
@@ -562,11 +656,10 @@ public class GameManager : MonoBehaviour
     {
         if (allBlockData == null || allBlockData.blockList == null || allBlockData.blockList.Count == 0)
             return null;
-        // 레벨별 티어 제한: lv1~3 = T1, lv4~6 = T1+T2, lv7+ = 전체
-        int maxTier = currentLevel <= 3 ? 1 : currentLevel <= 6 ? 2 : 3;
-        var pool = allBlockData.blockList.FindAll(b => b.tier <= maxTier);
-        if (pool.Count == 0) pool = allBlockData.blockList;
-        return pool[Random.Range(0, pool.Count)];
+        if (levelManager != null)
+            return levelManager.PickRandomBlock(currentLevel, allBlockData.blockList);
+        // 폴백: LevelManager 미연결 시 단순 균등 추첨
+        return allBlockData.blockList[Random.Range(0, allBlockData.blockList.Count)];
     }
 
     private GameObject CreateBlockContainer(BlockDataContents data, Vector3 position, Quaternion rotation)
@@ -940,21 +1033,31 @@ public class GameManager : MonoBehaviour
 
     // --- Item Actions ---
 
-    /// <summary>Time Stop: duration 동안 블록 자동 낙하 중단. 유저 조작은 유지.</summary>
+    /// <summary>Time Stop: duration 동안 시계/레벨업 게이지/콤보 윈도우 정지 + 볼 무력화. 블록은 계속 떨어지고 유저 조작 유지.</summary>
     public System.Collections.IEnumerator DoTimeStop(float duration)
     {
         isTimeStopped = true;
+        if (gimmickBallManager != null) gimmickBallManager.SetTimeStopState(true);
         yield return new WaitForSeconds(duration);
         isTimeStopped = false;
+        if (gimmickBallManager != null) gimmickBallManager.SetTimeStopState(false);
     }
 
-    /// <summary>Level Down: 레벨을 amount만큼 낮추고 낙하 속도 재계산.</summary>
+    /// <summary>Level Down: 레벨을 amount만큼 낮추고 LevelManager 기반으로 duration/fallSpeed 재로딩.</summary>
     public void DecreaseLevel(int amount, int minLevel)
     {
         currentLevel = Mathf.Max(currentLevel - amount, minLevel);
-        currentFallSpeed = baseFallSpeed * Mathf.Pow(speedMultiplier, currentLevel - 1);
+        currentLevelDuration = ResolveDuration(currentLevel);
+        currentFallSpeed = Mathf.Max(0.05f, ResolveFallSpeed(currentLevel));
         gaugeTimer = 0f;
+        if (gauge_Bar != null)
+        {
+            gauge_Bar.maxValue = currentLevelDuration;
+            gauge_Bar.value = currentLevelDuration;
+        }
         UpdateLevelUI();
+        if (gimmickBallManager != null)
+            gimmickBallManager.OnLevelChanged(currentLevel);
     }
 
     /// <summary>Reroll: 현재 블록을 파괴하고 지정 인덱스의 블록으로 즉시 교체 스폰.</summary>

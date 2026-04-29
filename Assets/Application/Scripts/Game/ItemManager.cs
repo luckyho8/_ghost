@@ -117,24 +117,7 @@ public class ItemManager : MonoBehaviour
     public void UseBombItem()
     {
         if (gameManager == null) return;
-
-        int minZ = gameManager.GridMinZ;
-        int minX = gameManager.GridMinX;
-        int maxX = gameManager.GridMaxX;
-
-        for (int z = minZ; z < minZ + bombClearRows; z++)
-        {
-            for (int x = minX; x <= maxX; x++)
-            {
-                gameManager.TryDestroyAndRemoveCubeAt(x, z);
-            }
-        }
-
-        var clearedLines = new List<int>();
-        for (int z = minZ; z < minZ + bombClearRows; z++)
-            clearedLines.Add(z);
-
-        gameManager.ShiftRowsDown(clearedLines);
+        gameManager.UseBomb(bombClearRows);
     }
 
     public void UseTimeStopItem()

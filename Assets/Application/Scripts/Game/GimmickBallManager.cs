@@ -184,6 +184,15 @@ public class GimmickBallManager : MonoBehaviour
         }
     }
 
+    /// <summary>TimeStop 아이템: 모든 볼을 반투명 + 충돌 OFF + 정지 상태로 (active=false면 복귀)</summary>
+    public void SetTimeStopState(bool active)
+    {
+        foreach (var ball in activeBalls)
+        {
+            if (ball != null) ball.SetTimeStopState(active);
+        }
+    }
+
     public void ClearBalls()
     {
         foreach (var ball in activeBalls)

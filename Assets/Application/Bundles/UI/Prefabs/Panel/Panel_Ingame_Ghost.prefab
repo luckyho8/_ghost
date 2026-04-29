@@ -5139,7 +5139,7 @@ GameObject:
   - component: {fileID: 4608491617725522930}
   - component: {fileID: 4973946392994998855}
   m_Layer: 5
-  m_Name: Time_Txt
+  m_Name: ComboTime_Txt
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

@@ -1,0 +1,105 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 89f4075d82cbc8c4a8c9f697a2a76e4a, type: 3}
+  m_Name: LevelDifficultyData
+  m_EditorClassIdentifier: 
+  entries:
+  - duration: 40
+    fallSpeed: 1
+    tierWeights:
+    - 1
+    - 0
+    - 0
+  - duration: 40
+    fallSpeed: 0.9
+    tierWeights:
+    - 1
+    - 0
+    - 0
+  - duration: 40
+    fallSpeed: 0.81
+    tierWeights:
+    - 1
+    - 0
+    - 0
+  - duration: 40
+    fallSpeed: 0.73
+    tierWeights:
+    - 0.9798658
+    - 0.017449649
+    - 0.0026845618
+  - duration: 40
+    fallSpeed: 0.66
+    tierWeights:
+    - 0.9356051
+    - 0.050972022
+    - 0.013422847
+  - duration: 40
+    fallSpeed: 0.59
+    tierWeights:
+    - 0.9089289
+    - 0.0704698
+    - 0.020601291
+  - duration: 35
+    fallSpeed: 0.53
+    tierWeights:
+    - 0.8783611
+    - 0.09395975
+    - 0.027679116
+  - duration: 35
+    fallSpeed: 0.48
+    tierWeights:
+    - 0.85133654
+    - 0.11409396
+    - 0.034569476
+  - duration: 30
+    fallSpeed: 0.43
+    tierWeights:
+    - 0.820544
+    - 0.13758391
+    - 0.041872125
+  - duration: 30
+    fallSpeed: 0.39
+    tierWeights:
+    - 0.7832214
+    - 0.1610738
+    - 0.055704817
+  - duration: 30
+    fallSpeed: 0.39
+    tierWeights:
+    - 0.7449277
+    - 0.18456376
+    - 0.07050858
+  - duration: 30
+    fallSpeed: 0.39
+    tierWeights:
+    - 0.7043266
+    - 0.20805371
+    - 0.08761968
+  - duration: 30
+    fallSpeed: 0.39
+    tierWeights:
+    - 0.67171884
+    - 0.2214765
+    - 0.106804624
+  - duration: 30
+    fallSpeed: 0.39
+    tierWeights:
+    - 0.6442382
+    - 0.23825502
+    - 0.117506765
+  - duration: 30
+    fallSpeed: 0.39
+    tierWeights:
+    - 0.62650186
+    - 0.24832213
+    - 0.12517603

@@ -86,13 +86,6 @@ public class UIManager : MonoBehaviour
     [Tooltip("펀치 최대 스케일 배수")]
     [SerializeField] private float comboPunchScale = 1.6f;
 
-    [Header("Combo - Timer Bar")]
-    [Tooltip("콤보 타이머 바 (Slider). value 0~1로 남은 시간 비율 표시. 텍스트만 사용하면 비워둬도 됨")]
-    [SerializeField] private Slider comboTimerBar;
-
-    [Tooltip("타이머 바 부모 (활성/비활성 토글용, 비워두면 Slider 자체 토글)")]
-    [SerializeField] private GameObject comboTimerBarRoot;
-
     [Header("Combo - Timer Text")]
     [Tooltip("콤보 타이머 카운트다운 텍스트 (TMP). 8.00초부터 0.00초까지 카운트다운")]
     [SerializeField] private TextMeshProUGUI comboTimerText;
@@ -144,10 +137,6 @@ public class UIManager : MonoBehaviour
             comboFlashImage.color = c;
             comboFlashImage.gameObject.SetActive(false);
         }
-
-        // 콤보 타이머 바 초기 비활성화
-        SetComboTimerBarActive(false);
-        if (comboTimerBar != null) comboTimerBar.value = 0f;
 
         // 콤보 타이머 텍스트 초기 비활성화
         if (comboTimerText != null)
@@ -372,16 +361,6 @@ public class UIManager : MonoBehaviour
         _comboPunchCo = null;
     }
 
-    /// <summary>콤보 타이머 바 갱신 (ratio 0~1, 0 이하면 비활성화)</summary>
-    public void UpdateComboTimerBar(float ratio)
-    {
-        if (comboTimerBar == null) return;
-        bool show = ratio > 0f;
-        SetComboTimerBarActive(show);
-        if (show)
-            comboTimerBar.value = Mathf.Clamp01(ratio);
-    }
-
     /// <summary>콤보 타이머 텍스트 카운트다운 갱신 (남은 초, 0 이하면 비활성화)</summary>
     public void UpdateComboTimerText(float remainingSeconds)
     {
@@ -395,20 +374,6 @@ public class UIManager : MonoBehaviour
         int centi = Mathf.FloorToInt((remainingSeconds - sec) * 100f);
         centi = Mathf.Clamp(centi, 0, 99);
         comboTimerText.text = string.Format(comboTimerFormat, sec, centi);
-    }
-
-    private void SetComboTimerBarActive(bool active)
-    {
-        if (comboTimerBarRoot != null)
-        {
-            if (comboTimerBarRoot.activeSelf != active)
-                comboTimerBarRoot.SetActive(active);
-        }
-        else if (comboTimerBar != null)
-        {
-            if (comboTimerBar.gameObject.activeSelf != active)
-                comboTimerBar.gameObject.SetActive(active);
-        }
     }
 
     // ── Ghost Toggle UI ─────────────────────────────────────────────
