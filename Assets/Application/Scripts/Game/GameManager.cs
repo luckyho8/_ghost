@@ -136,6 +136,11 @@ public class GameManager : MonoBehaviour
     private int currentScore;
     private int bestScore;
     private const string BestScoreKey = "BestScore";
+    private const string LastPlayKey = "LastPlay";
+    private const string TotalPlayKey = "TotalPlay";
+    private int sessionStartBest;
+    private int sessionStartLast;
+    private int sessionStartTotal;
     private int currentCombo;
     private float comboTimer = 0f;
     private const float ComboWindow = 8f;
@@ -180,6 +185,9 @@ public class GameManager : MonoBehaviour
         currentCombo = 0;
         currentLevel = 1;
         bestScore = PlayerPrefs.GetInt(BestScoreKey, 0);
+        sessionStartBest = bestScore;
+        sessionStartLast = PlayerPrefs.GetInt(LastPlayKey, 0);
+        sessionStartTotal = PlayerPrefs.GetInt(TotalPlayKey, 0);
         if (scoreTextEffect != null)
         {
             var st = scoreTextEffect.GetComponent<TMPro.TextMeshProUGUI>();
@@ -505,6 +513,41 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    private bool IsSpawnPositionBlocked(BlockDataContents data, int pivotX, int pivotZ)
+    {
+        if (data?.shapeData == null) return false;
+        for (int i = 0; i < 16 && i < data.shapeData.Length; i++)
+        {
+            if (!data.shapeData[i]) continue;
+            int row = i / 4;
+            int col = i % 4;
+            int gx = pivotX + col;
+            int gz = pivotZ - row;
+            if (occupiedCells.Contains(new Vector2Int(gx, gz)))
+                return true;
+        }
+        return false;
+    }
+
+    private void TriggerGameOver()
+    {
+        if (!gameRunning) return;
+        gameRunning = false;
+
+        int newTotal = sessionStartTotal + 1;
+        PlayerPrefs.SetInt(LastPlayKey, currentScore);
+        PlayerPrefs.SetInt(TotalPlayKey, newTotal);
+        if (currentScore > sessionStartBest)
+            PlayerPrefs.SetInt(BestScoreKey, currentScore);
+        PlayerPrefs.Save();
+
+        if (gimmickBallManager != null)
+            gimmickBallManager.PauseBalls();
+
+        if (UIManager.Instance != null)
+            UIManager.Instance.OpenGameOver(currentScore, currentLevel, sessionStartBest, sessionStartLast, sessionStartTotal);
+    }
+
     private BlockDataContents GetRandomBlockData()
     {
         if (allBlockData == null || allBlockData.blockList == null || allBlockData.blockList.Count == 0)
@@ -551,12 +594,20 @@ public class GameManager : MonoBehaviour
 
         // 큐 앞에서 꺼내 현재 블록으로 스폰 (X축 자동 센터링)
         var spawnData = nextQueue[0];
+        int pivotX = Mathf.RoundToInt(spawnPoint.position.x) - GetCenterOffsetX(spawnData);
+        int pivotZ = Mathf.RoundToInt(spawnPoint.position.z);
+
+        // 톱아웃: 스폰 위치가 점유돼 있으면 게임 오버
+        if (IsSpawnPositionBlocked(spawnData, pivotX, pivotZ))
+        {
+            TriggerGameOver();
+            return;
+        }
+
         var spawnObj = nextQueueObjects[0];
         nextQueue.RemoveAt(0);
         nextQueueObjects.RemoveAt(0);
 
-        int pivotX = Mathf.RoundToInt(spawnPoint.position.x) - GetCenterOffsetX(spawnData);
-        int pivotZ = Mathf.RoundToInt(spawnPoint.position.z);
         spawnObj.transform.position = new Vector3(pivotX, spawnPoint.position.y, spawnPoint.position.z);
         spawnObj.transform.rotation = spawnPoint.rotation;
         spawnObj.transform.localScale = Vector3.one; // Next 큐 프리뷰 스케일 → 원본 복원

@@ -55,12 +55,33 @@ public class GimmickBallManager : MonoBehaviour
     [Tooltip("랜덤 편차 최대 각도")]
     [SerializeField] private float randomDeflectAngle = 15f;
 
+    [Header("Debug — 런타임에 토글 가능")]
+    [Tooltip("볼 이동 궤적 라인 표시 (게임뷰)")]
+    [SerializeField] private bool debugShowTrail = false;
+    [Tooltip("속도/충돌 노말 기즈모 표시 (씬뷰)")]
+    [SerializeField] private bool debugShowGizmos = false;
+    [Tooltip("충돌마다 콘솔 로그 출력")]
+    [SerializeField] private bool debugLogCollisions = false;
+    [Tooltip("화면 좌상단 디버그 오버레이 (위치/속도/누적 충돌 등)")]
+    [SerializeField] private bool debugShowOverlay = false;
+
     private List<GimmickBall> activeBalls = new List<GimmickBall>();
     private int lastAppliedLevel = 0;
 
     private void Start()
     {
         SpawnBalls();
+    }
+
+    private void Update()
+    {
+        // 디버그 플래그를 매 프레임 볼들에 푸시 (Inspector 토글이 즉시 반영되도록)
+        for (int i = 0; i < activeBalls.Count; i++)
+        {
+            var ball = activeBalls[i];
+            if (ball != null)
+                ball.SetDebugFlags(debugShowTrail, debugShowGizmos, debugLogCollisions, debugShowOverlay);
+        }
     }
 
     /// <summary>설정된 개수만큼 볼 스폰</summary>

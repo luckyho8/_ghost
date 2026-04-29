@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -36,6 +37,26 @@ public class GimmickBall : MonoBehaviour
     private float lastCollisionTime;
     private const float RapidCollisionWindow = 0.3f; // 이 시간 내 연속 충돌이면 갇힌 것으로 판단
     private const int StuckThreshold = 4;            // 연속 충돌 횟수 임계값
+
+    // 충돌 후 노말 방향 푸시 거리 (인접 셀 즉시 재충돌 방지)
+    private const float PostCollisionPush = 0.1f;
+
+    // ── Debug ───────────────────────────────────────────────
+    private bool dbgShowTrail;
+    private bool dbgShowGizmos;
+    private bool dbgLogCollisions;
+    private bool dbgShowOverlay;
+
+    private LineRenderer trailLine;
+    private Queue<Vector3> trailPositions;
+    private const int TrailMaxPoints = 80;
+    private const float TrailWidth = 0.07f;
+
+    // 디버그 표시용 마지막 충돌 정보
+    private Vector3 lastContactPoint;
+    private Vector3 lastContactNormal;
+    private string lastCollisionDesc = "(none)";
+    private int totalCollisions;
 
     public void Init(GimmickBallManager manager, GameManager gm, float moveSpeed,
                      float deflectChance, float deflectAngle)
@@ -122,21 +143,119 @@ public class GimmickBall : MonoBehaviour
         rb.velocity = vel;
     }
 
+    private void Update()
+    {
+        UpdateTrail();
+    }
+
+    // ── Debug API ──────────────────────────────────────────
+
+    /// <summary>매니저에서 디버그 토글을 일괄 설정</summary>
+    public void SetDebugFlags(bool showTrail, bool showGizmos, bool logCollisions, bool showOverlay)
+    {
+        dbgShowTrail = showTrail;
+        dbgShowGizmos = showGizmos;
+        dbgLogCollisions = logCollisions;
+        dbgShowOverlay = showOverlay;
+
+        if (!dbgShowTrail && trailLine != null)
+            trailLine.gameObject.SetActive(false);
+    }
+
+    private void UpdateTrail()
+    {
+        if (!dbgShowTrail) return;
+        EnsureTrailRenderer();
+        trailLine.gameObject.SetActive(true);
+
+        trailPositions.Enqueue(transform.position);
+        while (trailPositions.Count > TrailMaxPoints) trailPositions.Dequeue();
+
+        trailLine.positionCount = trailPositions.Count;
+        int idx = 0;
+        foreach (var p in trailPositions)
+            trailLine.SetPosition(idx++, p);
+    }
+
+    private void EnsureTrailRenderer()
+    {
+        if (trailPositions == null) trailPositions = new Queue<Vector3>(TrailMaxPoints);
+        if (trailLine != null) return;
+
+        var go = new GameObject("BallTrail_Debug");
+        go.transform.SetParent(null, true); // world space
+        trailLine = go.AddComponent<LineRenderer>();
+        trailLine.useWorldSpace = true;
+        trailLine.startWidth = TrailWidth;
+        trailLine.endWidth = TrailWidth * 0.3f;
+        trailLine.material = new Material(Shader.Find("Sprites/Default"));
+        trailLine.startColor = new Color(1f, 0.95f, 0.2f, 0.9f);
+        trailLine.endColor = new Color(1f, 0.95f, 0.2f, 0f);
+        trailLine.numCornerVertices = 2;
+        trailLine.numCapVertices = 2;
+        trailLine.sortingOrder = 100;
+    }
+
+    private void OnDrawGizmos()
+    {
+        if (!dbgShowGizmos || rb == null) return;
+        // 현재 속도 벡터 (cyan)
+        Gizmos.color = Color.cyan;
+        Vector3 velDir = rb.velocity;
+        if (velDir.sqrMagnitude > 0.01f)
+        {
+            velDir = velDir.normalized * 1.5f;
+            Gizmos.DrawLine(transform.position, transform.position + velDir);
+            Gizmos.DrawSphere(transform.position + velDir, 0.08f);
+        }
+        // 마지막 충돌 지점 + 노말 (red/magenta)
+        if (lastContactNormal.sqrMagnitude > 0.01f)
+        {
+            Gizmos.color = Color.magenta;
+            Gizmos.DrawWireSphere(lastContactPoint, 0.18f);
+            Gizmos.color = Color.red;
+            Gizmos.DrawLine(lastContactPoint, lastContactPoint + lastContactNormal * 1.0f);
+        }
+    }
+
+    private void OnGUI()
+    {
+        if (!dbgShowOverlay || rb == null) return;
+        int slot = GetInstanceID() & 0xFF;
+        float y = 10f + (slot % 4) * 110f;
+        var rect = new Rect(10f, y, 320f, 105f);
+        GUI.Box(rect, GUIContent.none);
+        var inner = new Rect(rect.x + 6f, rect.y + 4f, rect.width - 12f, rect.height - 8f);
+        Vector3 v = rb.velocity;
+        string label =
+            $"<b>Ball [{slot:X2}]</b>\n" +
+            $"Pos: ({transform.position.x:F2}, {transform.position.z:F2})\n" +
+            $"Vel: ({v.x:F2}, {v.z:F2})  |v|={v.magnitude:F2}\n" +
+            $"Speed: {speed:F2}  Stuck: {consecutiveCollisions}/{StuckThreshold}\n" +
+            $"Total Hits: {totalCollisions}\n" +
+            $"Last: {lastCollisionDesc}";
+        var style = new GUIStyle(GUI.skin.label) { richText = true, fontSize = 12 };
+        GUI.Label(inner, label, style);
+    }
+
     private void OnCollisionEnter(Collision collision)
     {
         GameObject other = collision.gameObject;
         int otherLayer = other.layer;
 
-        // 충돌 노말 계산
-        Vector3 normal = Vector3.zero;
+        // 물리 노말 (벽/낙하블록 충돌에 사용)
+        Vector3 contactNormal = Vector3.zero;
+        Vector3 contactPoint = transform.position;
         if (collision.contactCount > 0)
         {
-            normal = collision.GetContact(0).normal;
-            normal.y = 0f;
+            var c0 = collision.GetContact(0);
+            contactNormal = c0.normal;
+            contactPoint = c0.point;
+            contactNormal.y = 0f;
         }
-        if (normal.sqrMagnitude < 0.001f)
-            normal = -moveDirection;
-        normal.Normalize();
+        if (contactNormal.sqrMagnitude < 0.001f)
+            contactNormal = -moveDirection;
+        contactNormal.Normalize();
 
         // --- 갇힘 감지 ---
         float now = Time.time;
@@ -145,9 +264,14 @@ public class GimmickBall : MonoBehaviour
         else
             consecutiveCollisions = 1;
         lastCollisionTime = now;
+        totalCollisions++;
+        lastContactPoint = contactPoint;
+        lastContactNormal = contactNormal;
 
         if (consecutiveCollisions >= StuckThreshold)
         {
+            lastCollisionDesc = $"STUCK→ESCAPE ({consecutiveCollisions} hits in window)";
+            if (dbgLogCollisions) Debug.Log($"[Ball:{GetInstanceID() & 0xFF:X2}] {lastCollisionDesc}");
             EscapeStuck();
             return;
         }
@@ -155,8 +279,10 @@ public class GimmickBall : MonoBehaviour
         // --- 벽 충돌 ---
         if (otherLayer == wallLayer)
         {
+            lastCollisionDesc = $"WALL n=({contactNormal.x:F2},{contactNormal.z:F2})";
+            if (dbgLogCollisions) Debug.Log($"[Ball:{GetInstanceID() & 0xFF:X2}] {lastCollisionDesc}");
             PlayHitPunch(1.25f);
-            ApplyReflection(normal);
+            ApplyReflection(contactNormal);
             return;
         }
 
@@ -168,27 +294,55 @@ public class GimmickBall : MonoBehaviour
             if (falling != null)
             {
                 // 낙하 블록 → 랜덤 변환
+                lastCollisionDesc = "FALLING_BLOCK → RANDOMIZE";
+                if (dbgLogCollisions) Debug.Log($"[Ball:{GetInstanceID() & 0xFF:X2}] {lastCollisionDesc}");
                 if (gameManager != null)
                     gameManager.RandomizeCurrentBlock();
                 PlayHitPunch(1.4f);
-                ApplyReflection(normal);
+                ApplyReflection(contactNormal);
                 return;
             }
 
-            // 고정 블록 → 셀 파괴 + 점수
+            // 고정 블록 → 셀 파괴 + 점수 (그리드 기반 노말 사용 — 물리 노말은 모서리 충돌 시 대각선이라 옆 셀로 침투됨)
             Vector3 cubePos = other.transform.position;
             int gx = Mathf.RoundToInt(cubePos.x);
             int gz = Mathf.RoundToInt(cubePos.z);
+            Vector3 gridNormal = ComputeGridBasedNormal(transform.position, cubePos);
+            lastContactNormal = gridNormal;
+            lastCollisionDesc = $"FIXED_CELL ({gx},{gz}) gridN=({gridNormal.x:F0},{gridNormal.z:F0})";
+            if (dbgLogCollisions) Debug.Log($"[Ball:{GetInstanceID() & 0xFF:X2}] {lastCollisionDesc}");
+
             if (gameManager != null)
                 gameManager.TryDestroyAndRemoveCubeAt(gx, gz, giveScore: true);
             PlayHitPunch(1.5f);
-            ApplyReflection(normal);
+            ApplyReflection(gridNormal);
+
+            // 인접 셀과 즉시 재충돌 방지: 노말 방향으로 살짝 밀어냄
+            transform.position += gridNormal * PostCollisionPush;
             return;
         }
 
         // 기타 충돌
+        lastCollisionDesc = $"OTHER layer={otherLayer}";
+        if (dbgLogCollisions) Debug.Log($"[Ball:{GetInstanceID() & 0xFF:X2}] {lastCollisionDesc}");
         PlayHitPunch(1.2f);
-        ApplyReflection(normal);
+        ApplyReflection(contactNormal);
+    }
+
+    private void OnDestroy()
+    {
+        if (trailLine != null)
+            Destroy(trailLine.gameObject);
+    }
+
+    /// <summary>볼 위치 - 셀 위치의 우세 축으로 그리드 기반 노말 계산. 항상 축 정렬 (±X 또는 ±Z).</summary>
+    private static Vector3 ComputeGridBasedNormal(Vector3 ballPos, Vector3 cellPos)
+    {
+        float dx = ballPos.x - cellPos.x;
+        float dz = ballPos.z - cellPos.z;
+        if (Mathf.Abs(dx) >= Mathf.Abs(dz))
+            return new Vector3(dx >= 0f ? 1f : -1f, 0f, 0f);
+        return new Vector3(0f, 0f, dz >= 0f ? 1f : -1f);
     }
 
     /// <summary>갇힘 탈출: 그리드 중앙으로 워프 + 랜덤 방향 재발사</summary>

@@ -10,6 +10,8 @@ public class UIManager : MonoBehaviour
     [SerializeField] private GameObject popupPausePrefab;
     [SerializeField] private GameObject popupWinPrefab;
     [SerializeField] private GameObject popupFailPrefab;
+    [Tooltip("게임 종료 시 표시되는 클리어/게임오버 팝업 (InGameClear 프리팹)")]
+    [SerializeField] private GameObject popupGameOverPrefab;
 
     [Header("Canvas")]
     [SerializeField] private Transform popupRoot;
@@ -210,6 +212,24 @@ public class UIManager : MonoBehaviour
     public void OpenPause()  => OpenPopup(popupPausePrefab);
     public void OpenWin()    => OpenPopup(popupWinPrefab);
     public void OpenFail()   => OpenPopup(popupFailPrefab);
+
+    /// <summary>게임 종료 → 클리어 팝업 오픈. Final 점수/레벨 + 이전 기록을 넘겨준다.</summary>
+    public void OpenGameOver(int finalScore, int finalLevel, int prevBest, int prevLast, int prevTotal)
+    {
+        if (popupGameOverPrefab == null)
+        {
+            Debug.LogWarning("popupGameOverPrefab 미연결: UIManager Inspector에서 InGameClear 프리팹을 연결하세요.");
+            return;
+        }
+
+        ClosePopup();
+        _currentPopup = Instantiate(popupGameOverPrefab, popupRoot);
+        var clear = _currentPopup.GetComponent<Popup_InGameClear>();
+        if (clear != null)
+            clear.Init(finalScore, finalLevel, prevBest, prevLast, prevTotal);
+        else
+            Debug.LogWarning("InGameClear 프리팹에 Popup_InGameClear 컴포넌트가 없습니다.");
+    }
 
     public void ClosePopup()
     {

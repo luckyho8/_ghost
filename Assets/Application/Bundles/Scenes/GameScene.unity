@@ -1285,6 +1285,8 @@ MonoBehaviour:
     type: 3}
   popupWinPrefab: {fileID: 0}
   popupFailPrefab: {fileID: 0}
+  popupGameOverPrefab: {fileID: 6311812125158786214, guid: 8194d252b0dd0d647814d5e02d4ba84d,
+    type: 3}
   popupRoot: {fileID: 1715733503}
   plusScore_Txt: {fileID: 20509215}
   plusScorePunchDuration: 0.25
