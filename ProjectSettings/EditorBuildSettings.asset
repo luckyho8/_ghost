@@ -7,7 +7,7 @@ EditorBuildSettings:
   m_Scenes:
   - enabled: 1
     path: Assets/Application/Bundles/Scenes/StartupScene.unity
-    guid: 00000000000000000000000000000000
+    guid: 5d04e757edb49b047aefea194aa87045
   - enabled: 1
     path: Assets/Application/Bundles/Scenes/GameScene.unity
     guid: 30a682d286dc32b4199ab646bd530eb6

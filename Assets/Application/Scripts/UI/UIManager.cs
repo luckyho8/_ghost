@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.UI;
 using TMPro;
 
 public class UIManager : MonoBehaviour
@@ -44,6 +45,64 @@ public class UIManager : MonoBehaviour
     [Tooltip("Description 펀치 스케일 (1이면 펀치 없음)")]
     [SerializeField] private float descPunchScale = 1.15f;
 
+    // ── Combo 연출 ───────────────────────────────────────────────────
+    [Header("Combo - Flash")]
+    [Tooltip("풀스크린 컬러 플래시용 Image (Canvas 위쪽에 풀스크린, RaycastTarget=false, alpha 0)")]
+    [SerializeField] private Image comboFlashImage;
+
+    [Tooltip("콤보 등급별 플래시 색상 (인덱스 0=콤보2, 1=콤보3, 2=콤보4, 3=콤보5+). 부족하면 마지막 색상 반복")]
+    [SerializeField] private Color[] comboFlashColors = new Color[]
+    {
+        new Color(1f, 0.95f, 0.2f, 1f),   // 콤보 2: 노랑
+        new Color(1f, 0.6f, 0.1f, 1f),    // 콤보 3: 주황
+        new Color(1f, 0.25f, 0.25f, 1f),  // 콤보 4: 빨강
+        new Color(0.75f, 0.25f, 1f, 1f),  // 콤보 5+: 보라
+    };
+
+    [Tooltip("플래시 최대 알파 (0~1)")]
+    [Range(0f, 1f)]
+    [SerializeField] private float comboFlashAlpha = 0.32f;
+
+    [Tooltip("플래시 펀치인 시간 (초) — 콤보 발생 직후 빠르게 알파 최대로 차오르는 시간")]
+    [SerializeField] private float comboFlashFadeIn = 0.04f;
+
+    [Tooltip("플래시 페이드아웃 시간 (초) — 짧게 타격감만, 8초 콤보 타이머는 BG 색상 펄스가 담당")]
+    [SerializeField] private float comboFlashFadeOut = 0.4f;
+
+    [Header("Combo - Background Pulse")]
+    [Tooltip("배경 색상 펄스 컴포넌트 (BG_Plan에 부착). 콤보 시 8초 동안 색상 페이드 복귀 → 콤보 타이머 시각화")]
+    [SerializeField] private BackgroundColorPulse comboBackgroundPulse;
+
+    [Tooltip("배경 펄스 페이드 시간 (초) — 콤보 윈도우(8초)와 동기 권장")]
+    [SerializeField] private float comboBackgroundPulseDuration = 8f;
+
+    [Header("Combo - Text Punch")]
+    [Tooltip("콤보 발생 시 펀치할 RectTransform (보통 콤보 텍스트 자체 또는 그 부모)")]
+    [SerializeField] private RectTransform comboPunchTarget;
+
+    [Tooltip("펀치 시간 (초)")]
+    [SerializeField] private float comboPunchDuration = 0.4f;
+
+    [Tooltip("펀치 최대 스케일 배수")]
+    [SerializeField] private float comboPunchScale = 1.6f;
+
+    [Header("Combo - Timer Bar")]
+    [Tooltip("콤보 타이머 바 (Slider). value 0~1로 남은 시간 비율 표시. 텍스트만 사용하면 비워둬도 됨")]
+    [SerializeField] private Slider comboTimerBar;
+
+    [Tooltip("타이머 바 부모 (활성/비활성 토글용, 비워두면 Slider 자체 토글)")]
+    [SerializeField] private GameObject comboTimerBarRoot;
+
+    [Header("Combo - Timer Text")]
+    [Tooltip("콤보 타이머 카운트다운 텍스트 (TMP). 8.00초부터 0.00초까지 카운트다운")]
+    [SerializeField] private TextMeshProUGUI comboTimerText;
+
+    [Tooltip("타이머 텍스트 포맷. {0}=초(정수), {1}=센티초(00~99). 예: '{0}:{1:00}' → '8:00' / '00:0{0}:{1:00}' → '00:08:00'")]
+    [SerializeField] private string comboTimerFormat = "{0}:{1:00}";
+
+    private Coroutine _comboFlashCo;
+    private Coroutine _comboPunchCo;
+
     // ── Ghost Toggle UI ─────────────────────────────────────────────
     [Header("Ghost Toggle UI")]
     [Tooltip("Ghost_On 오브젝트 (고스트 활성 시 표시)")]
@@ -76,6 +135,23 @@ public class UIManager : MonoBehaviour
             _scoreDescOriginalScale = scoreDesc_Txt.transform.localScale;
             SetTMPAlpha(scoreDesc_Txt, 0f);
         }
+
+        // 콤보 플래시 초기 알파 0 + 비활성화
+        if (comboFlashImage != null)
+        {
+            var c = comboFlashImage.color;
+            c.a = 0f;
+            comboFlashImage.color = c;
+            comboFlashImage.gameObject.SetActive(false);
+        }
+
+        // 콤보 타이머 바 초기 비활성화
+        SetComboTimerBarActive(false);
+        if (comboTimerBar != null) comboTimerBar.value = 0f;
+
+        // 콤보 타이머 텍스트 초기 비활성화
+        if (comboTimerText != null)
+            comboTimerText.gameObject.SetActive(false);
     }
 
     // ── Plus Score 연출 ─────────────────────────────────────────────
@@ -196,6 +272,143 @@ public class UIManager : MonoBehaviour
         Color c = tmp.color;
         c.a = alpha;
         tmp.color = c;
+    }
+
+    // ── Combo 연출 ───────────────────────────────────────────────────
+
+    /// <summary>
+    /// 콤보 발생 시 풀스크린 짧은 타격감 플래시 + 배경 8초 색상 펄스 동시 트리거.
+    /// 콤보 등급별 색상 (Combo Flash Colors[N-2]) 사용.
+    /// </summary>
+    public void PlayComboFlash(int comboCount)
+    {
+        if (comboCount < 2) return;
+        if (comboFlashColors == null || comboFlashColors.Length == 0) return;
+
+        int idx = Mathf.Clamp(comboCount - 2, 0, comboFlashColors.Length - 1);
+        Color baseColor = comboFlashColors[idx];
+
+        // 1) UI 풀스크린 플래시 — 짧은 타격감 (펀치인 0.04s + 페이드아웃 0.4s)
+        if (comboFlashImage != null)
+        {
+            if (_comboFlashCo != null) StopCoroutine(_comboFlashCo);
+            _comboFlashCo = StartCoroutine(ComboFlashRoutine(baseColor));
+        }
+
+        // 2) 배경 색상 펄스 — 8초 동안 천천히 원본 색상으로 복귀 (콤보 타이머 시각화)
+        if (comboBackgroundPulse != null)
+            comboBackgroundPulse.Pulse(baseColor, comboBackgroundPulseDuration);
+    }
+
+    /// <summary>외부에서 BG 펄스 시간을 명시 지정 (디폴트는 comboBackgroundPulseDuration)</summary>
+    public void PlayComboFlash(int comboCount, float backgroundPulseDuration)
+    {
+        comboBackgroundPulseDuration = backgroundPulseDuration;
+        PlayComboFlash(comboCount);
+    }
+
+    private IEnumerator ComboFlashRoutine(Color baseColor)
+    {
+        comboFlashImage.gameObject.SetActive(true);
+
+        // 펀치인
+        float elapsed = 0f;
+        while (elapsed < comboFlashFadeIn)
+        {
+            elapsed += Time.deltaTime;
+            float r = Mathf.Clamp01(elapsed / comboFlashFadeIn);
+            comboFlashImage.color = new Color(baseColor.r, baseColor.g, baseColor.b, Mathf.Lerp(0f, comboFlashAlpha, r));
+            yield return null;
+        }
+        comboFlashImage.color = new Color(baseColor.r, baseColor.g, baseColor.b, comboFlashAlpha);
+
+        // 페이드아웃 (짧게)
+        elapsed = 0f;
+        while (elapsed < comboFlashFadeOut)
+        {
+            elapsed += Time.deltaTime;
+            float r = Mathf.Clamp01(elapsed / comboFlashFadeOut);
+            comboFlashImage.color = new Color(baseColor.r, baseColor.g, baseColor.b, Mathf.Lerp(comboFlashAlpha, 0f, r));
+            yield return null;
+        }
+        comboFlashImage.color = new Color(baseColor.r, baseColor.g, baseColor.b, 0f);
+        comboFlashImage.gameObject.SetActive(false);
+        _comboFlashCo = null;
+    }
+
+    /// <summary>콤보 텍스트 펀치 연출</summary>
+    public void PlayComboPunch()
+    {
+        if (comboPunchTarget == null) return;
+        if (_comboPunchCo != null) StopCoroutine(_comboPunchCo);
+        _comboPunchCo = StartCoroutine(ComboPunchRoutine());
+    }
+
+    private IEnumerator ComboPunchRoutine()
+    {
+        Vector3 origScale = Vector3.one;
+        Vector3 peakScale = origScale * comboPunchScale;
+        float half = Mathf.Max(0.01f, comboPunchDuration * 0.5f);
+
+        comboPunchTarget.localScale = origScale;
+
+        float elapsed = 0f;
+        while (elapsed < half)
+        {
+            elapsed += Time.deltaTime;
+            float r = Mathf.Clamp01(elapsed / half);
+            comboPunchTarget.localScale = Vector3.Lerp(origScale, peakScale, r);
+            yield return null;
+        }
+        elapsed = 0f;
+        while (elapsed < half)
+        {
+            elapsed += Time.deltaTime;
+            float r = Mathf.Clamp01(elapsed / half);
+            comboPunchTarget.localScale = Vector3.Lerp(peakScale, origScale, r);
+            yield return null;
+        }
+        comboPunchTarget.localScale = origScale;
+        _comboPunchCo = null;
+    }
+
+    /// <summary>콤보 타이머 바 갱신 (ratio 0~1, 0 이하면 비활성화)</summary>
+    public void UpdateComboTimerBar(float ratio)
+    {
+        if (comboTimerBar == null) return;
+        bool show = ratio > 0f;
+        SetComboTimerBarActive(show);
+        if (show)
+            comboTimerBar.value = Mathf.Clamp01(ratio);
+    }
+
+    /// <summary>콤보 타이머 텍스트 카운트다운 갱신 (남은 초, 0 이하면 비활성화)</summary>
+    public void UpdateComboTimerText(float remainingSeconds)
+    {
+        if (comboTimerText == null) return;
+        bool show = remainingSeconds > 0f;
+        if (comboTimerText.gameObject.activeSelf != show)
+            comboTimerText.gameObject.SetActive(show);
+        if (!show) return;
+
+        int sec = Mathf.FloorToInt(remainingSeconds);
+        int centi = Mathf.FloorToInt((remainingSeconds - sec) * 100f);
+        centi = Mathf.Clamp(centi, 0, 99);
+        comboTimerText.text = string.Format(comboTimerFormat, sec, centi);
+    }
+
+    private void SetComboTimerBarActive(bool active)
+    {
+        if (comboTimerBarRoot != null)
+        {
+            if (comboTimerBarRoot.activeSelf != active)
+                comboTimerBarRoot.SetActive(active);
+        }
+        else if (comboTimerBar != null)
+        {
+            if (comboTimerBar.gameObject.activeSelf != active)
+                comboTimerBar.gameObject.SetActive(active);
+        }
     }
 
     // ── Ghost Toggle UI ─────────────────────────────────────────────

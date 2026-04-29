@@ -146,6 +146,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!224 &37574009 stripped
+RectTransform:
+  m_CorrespondingSourceObject: {fileID: 8941013001835061573, guid: 9cd51a0c313114b458a3004d25e0e946,
+    type: 3}
+  m_PrefabInstance: {fileID: 4903296742470336709}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &119825638
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -507,6 +513,10 @@ MonoBehaviour:
   maxSpeed: 10
   randomDeflectChance: 0.12
   randomDeflectAngle: 14.9
+  debugShowTrail: 0
+  debugShowGizmos: 0
+  debugLogCollisions: 0
+  debugShowOverlay: 0
 --- !u!4 &652649574
 Transform:
   m_ObjectHideFlags: 0
@@ -1296,6 +1306,24 @@ MonoBehaviour:
   descHoldDuration: 0.5
   descFadeOutDuration: 0.2
   descPunchScale: 1.15
+  comboFlashImage: {fileID: 1431880554}
+  comboFlashColors:
+  - {r: 1, g: 0.95, b: 0.2, a: 1}
+  - {r: 1, g: 0.6, b: 0.1, a: 1}
+  - {r: 1, g: 0.25, b: 0.25, a: 1}
+  - {r: 0.75, g: 0.25, b: 1, a: 1}
+  comboFlashAlpha: 0.32
+  comboFlashFadeIn: 0.04
+  comboFlashFadeOut: 0.4
+  comboBackgroundPulse: {fileID: 1150557128}
+  comboBackgroundPulseDuration: 8
+  comboPunchTarget: {fileID: 37574009}
+  comboPunchDuration: 0.4
+  comboPunchScale: 1.6
+  comboTimerBar: {fileID: 0}
+  comboTimerBarRoot: {fileID: 0}
+  comboTimerText: {fileID: 1605855115}
+  comboTimerFormat: '{0}:{1:00}'
   ghostOnObj: {fileID: 2097279307}
   ghostOffObj: {fileID: 1232745283}
 --- !u!114 &1120002598 stripped
@@ -1322,6 +1350,7 @@ GameObject:
   - component: {fileID: 1150557127}
   - component: {fileID: 1150557126}
   - component: {fileID: 1150557125}
+  - component: {fileID: 1150557128}
   m_Layer: 0
   m_Name: BG_Plan
   m_TagString: Untagged
@@ -1416,6 +1445,20 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1150557123}
   m_Mesh: {fileID: 10209, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &1150557128
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1150557123}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 05ad182b6a8e20147a4842f18595492d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targetRenderer: {fileID: 1150557126}
+  punchInDuration: 0.08
 --- !u!1 &1208691192
 GameObject:
   m_ObjectHideFlags: 0
@@ -2199,6 +2242,18 @@ MonoBehaviour:
   btn_Reroll: {fileID: 1107242044}
   ghostMaterial: {fileID: 2100000, guid: 15d46fbb9c0db1c49b6c452723b1a0ba, type: 2}
   btn_Ghost: {fileID: 1774266125}
+--- !u!114 &1431880554 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 8777143398460246776, guid: 9cd51a0c313114b458a3004d25e0e946,
+    type: 3}
+  m_PrefabInstance: {fileID: 4903296742470336709}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1480303532
 GameObject:
   m_ObjectHideFlags: 0
@@ -2500,6 +2555,18 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1590446293}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &1605855115 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 4973946392994998855, guid: 9cd51a0c313114b458a3004d25e0e946,
+    type: 3}
+  m_PrefabInstance: {fileID: 4903296742470336709}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!224 &1715733503 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 8513305011042935716, guid: 9cd51a0c313114b458a3004d25e0e946,

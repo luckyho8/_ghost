@@ -5,3 +5,17 @@
 /[Bb]uilds/
 /[Ll]ogs/
 /[Uu]ser[Ss]ettings/
+
+# Android 빌드 잔여물 (루트로 새어나오는 파일들)
+/AndroidManifest.xml
+/classes.dex
+/resources.arsc
+/lib/
+/res/
+/META-INF/
+/*_BurstDebugInformation_DoNotShip/
+/*_BackUpThisFolder_ButDontShipItWithYourGame/
+
+# Keystore (출시 직전 추가 예정 - 보안상 git에 절대 안 올림)
+*.keystore
+*.jks

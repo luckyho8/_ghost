@@ -121,7 +121,7 @@
 - [x] **그리드 10칸 변경** — 표준 테트리스 기준
 - [x] **StartupScene** — 비동기 로딩 + Tap to Start
 - [x] **게임 오버 판정 + 클리어 팝업** — 톱아웃 → InGameClear 팝업 (점수 카운트업, 기록 갱신, Restart)
-- [ ] **콤보 연출** — 콤보 UI TMP 오브젝트 연결, 타이머 바 표시
+- [x] **콤보 연출** — 텍스트 펀치 + 풀스크린 컬러 플래시 (콤보 등급별) + 콤보 비례 카메라 쉐이크 + 8초 타이머 바
 - [ ] **UX 전반 개선** — Block Blast 스타일 참고, 넥스트 블록 표시 개선
 
 ### 📅 중기
@@ -239,3 +239,13 @@ PROJECT.md 읽어줘. 플랜모드로 갈 건데, [정리하고 싶은 주제들
 | 2026-04-03 | VFX 시스템(VFXManager 신설) + 라인클리어 연출 교체(FX_LineClear_01) + 그리드 15→10칸 + StartupScene + 빌드 메타 (커밋: 15a19c8) |
 | 2026-04-29 | 게임오버 판정(SpawnBlock 톱아웃) + InGameClear 팝업 신설(Popup_InGameClear.cs) + LastPlay/TotalPlay 기록 + UIManager.OpenGameOver |
 | 2026-04-29 | 볼 기믹 디버그 도구(Trail/Gizmo/Overlay/Log) + 고정셀 충돌 그리드기반 노말 + post-collision push (스택 옆면 침투 버그 수정) |
+| 2026-04-29 | 콤보 연출 패키지: 텍스트 펀치 + 풀스크린 컬러 플래시(콤보 등급별 색상) + 콤보 비례 카메라 쉐이크 + 8초 타이머 바 |
+| 2026-04-29 | 콤보 플래시를 8초 슬로우 페이드아웃으로 변경 — 색상 알파 자체가 타이머 역할. 슬라이더 바 별도 표시 불필요 |
+| 2026-04-29 | 콤보 연출 재구성: UI 풀스크린 플래시는 짧은 타격감(0.4s)으로 환원 + BackgroundColorPulse 신설 — BG_Plan 머티리얼 색상이 8초 페이드 복귀로 콤보 타이머 시각화 (시야 안 가림) |
+| 2026-04-29 | 콤보 타이머 텍스트 카운트다운(8.00→0.00) UIManager.UpdateComboTimerText + 포맷 문자열 Inspector 노출 |
+| 2026-04-29 | 사용 안 하는 17개 패키지 정리 (collab-proxy/test-framework/timeline + 14개 modules) — 빌드 사이즈 ↓, 컴파일 ↑ |
+| 2026-04-29 | Ghost Build Tool 신설 (Ghost/Build Tool): Dev/Release × APK/AAB, Min/Target SDK 35 고정, Dev면 .dev suffix 자동, IL2CPP/Mono 자동 전환, Version Code +1 자동, 캐시 클리어 |
+| 2026-04-29 | 빌드툴 SDK/백엔드 정책 수정: Min API 23 (호환성), Target API 35 (Play 정책), Dev/Release 모두 IL2CPP — S24 Ultra 등 Android 14- 디바이스 설치 가능해짐 |
+| 2026-04-29 | 폰트 클린업 (~60MB 절약): 0-ref 폰트 6쌍 + Pretendard-Bold(38MB 한글 폴백) 삭제, HavenSans/Eng_dst LilitaOne의 Pretendard 폴백 참조 제거. 한글 사용 시 추후 TMPro Font Asset Creator로 5분만에 재생성 |
+| 2026-04-29 | TMPro Examples & Extras 폴더 삭제 (3.9MB 절약, 안 쓰는 데모 자산) |
+| 2026-04-29 | 빌드툴에 빌드 직전 콘솔 클리어 옵션 추가 — Unity 자체 SetSystemInterested 경고 노이즈 제거용 (LogEntries.Clear 리플렉션) |

@@ -277,6 +277,16 @@ public class GameManager : MonoBehaviour
                 comboTimer = 0f;
                 currentCombo = 0;
                 UpdateComboUI();
+                if (UIManager.Instance != null)
+                {
+                    UIManager.Instance.UpdateComboTimerBar(0f);
+                    UIManager.Instance.UpdateComboTimerText(0f);
+                }
+            }
+            else if (UIManager.Instance != null)
+            {
+                UIManager.Instance.UpdateComboTimerBar(comboTimer / ComboWindow);
+                UIManager.Instance.UpdateComboTimerText(comboTimer);
             }
         }
 
@@ -850,6 +860,13 @@ public class GameManager : MonoBehaviour
             UpdateScoreUI();
             UpdateComboUI();
 
+            // 콤보 연출 트리거 (콤보 ≥ 2): UI 짧은 플래시 + 배경 8초 색상 펄스 (배경 페이드가 콤보 타이머 시각화 역할)
+            if (currentCombo >= 2 && UIManager.Instance != null)
+            {
+                UIManager.Instance.PlayComboPunch();
+                UIManager.Instance.PlayComboFlash(currentCombo, ComboWindow);
+            }
+
             // 3) 볼 일시 정지
             if (gimmickBallManager != null) gimmickBallManager.PauseBalls();
 
@@ -1100,9 +1117,14 @@ public class GameManager : MonoBehaviour
         int totalCols = gridMaxX - gridMinX + 1;
         float perCellDelay = lineClearSpawnInterval;
 
-        // 카메라 셰이크
+        // 카메라 셰이크 — 콤보 수에 비례한 배수 (콤보 1 = 1x, 콤보 5+ = 2x cap)
         if (lineClearShake && VFXManager.Instance != null)
-            VFXManager.Instance.Shake(lineClearShakeIntensity, lineClearShakeDuration);
+        {
+            float comboBoost = 1f + Mathf.Min(Mathf.Max(currentCombo - 1, 0), 4) * 0.25f;
+            VFXManager.Instance.Shake(
+                lineClearShakeIntensity * comboBoost,
+                lineClearShakeDuration * comboBoost);
+        }
 
         // 셀 단위 순차 처리
         for (int col = 0; col < totalCols; col++)
