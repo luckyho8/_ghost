@@ -249,3 +249,5 @@ PROJECT.md 읽어줘. 플랜모드로 갈 건데, [정리하고 싶은 주제들
 | 2026-04-29 | 폰트 클린업 (~60MB 절약): 0-ref 폰트 6쌍 + Pretendard-Bold(38MB 한글 폴백) 삭제, HavenSans/Eng_dst LilitaOne의 Pretendard 폴백 참조 제거. 한글 사용 시 추후 TMPro Font Asset Creator로 5분만에 재생성 |
 | 2026-04-29 | TMPro Examples & Extras 폴더 삭제 (3.9MB 절약, 안 쓰는 데모 자산) |
 | 2026-04-29 | 빌드툴에 빌드 직전 콘솔 클리어 옵션 추가 — Unity 자체 SetSystemInterested 경고 노이즈 제거용 (LogEntries.Clear 리플렉션) |
+| 2026-04-29 | Custom AndroidManifest.xml 추가 (Assets/Plugins/Android/) — Unity 2022.3가 ProjectSettings의 Portrait를 reversePortrait로 잘못 매핑하는 버그 우회. tools:replace로 강제 portrait 적용 |
+| 2026-04-29 | Vulkan PreTransform 비활성화 (vulkanEnablePreTransform: 1→0) — UI 180° 회전 버그 근본 원인. Vulkan이 디스플레이 회전을 사전 변환할 때 Canvas Overlay와 충돌해서 화면 전체 뒤집힘 |
