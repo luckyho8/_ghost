@@ -13,7 +13,7 @@
 | **엔진** | Unity (URP) |
 | **개발 방식** | 1인 개발 |
 | **개발 시작** | 2026년 초 |
-| **현재 상태** | VFX/연출/그리드 10칸/StartupScene 적용 완료, 게임오버 판정 + InGameClear 팝업(연출 포함) 1차 구현, 폴리싱 진행 중 |
+| **현재 상태** | VFX/연출/그리드 10칸/StartupScene 적용 완료, 게임오버 판정 + InGameClear 팝업(연출 포함) 1차 구현, 스플래시 인트로 적용, 폴리싱 진행 중 |
 
 ---
 
@@ -91,8 +91,9 @@
   - Restart 버튼: GameScene 리로드
 
 #### 씬 구성
-- StartupScene: 비동기 로딩 → Tap to Start → GameScene 전환
+- StartupScene: Logo 인트로(LogoIntro.cs) → 비동기 로딩 → Tap to Start → GameScene 전환
 - GameScene: 메인 게임 씬 (그리드 10칸 = 표준 테트리스 기준)
+- Static Splash Image (Player Settings): OS 차원 즉시 표시로 콜드스타트 검은화면 제거
 
 #### 블록 데이터
 - 8종 블록 정의 (ScriptableObject)
@@ -213,7 +214,7 @@ PROJECT.md 읽어줘. 플랜모드로 갈 건데, [정리하고 싶은 주제들
 - [ ] 광고 SDK 연동
 - [ ] 퍼포먼스 최적화 (오브젝트 풀링 검토)
 - [ ] 사운드 전체 추가
-- [ ] 아이콘 / 스플래시 스크린
+- [x] 아이콘 / 스플래시 스크린 (Static Splash + Logo 인트로 적용)
 - [ ] 개인정보처리방침 (앱스토어 필수)
 
 ---
@@ -251,3 +252,5 @@ PROJECT.md 읽어줘. 플랜모드로 갈 건데, [정리하고 싶은 주제들
 | 2026-04-29 | 빌드툴에 빌드 직전 콘솔 클리어 옵션 추가 — Unity 자체 SetSystemInterested 경고 노이즈 제거용 (LogEntries.Clear 리플렉션) |
 | 2026-04-29 | Custom AndroidManifest.xml 추가 (Assets/Plugins/Android/) — Unity 2022.3가 ProjectSettings의 Portrait를 reversePortrait로 잘못 매핑하는 버그 우회. tools:replace로 강제 portrait 적용 |
 | 2026-04-29 | Vulkan PreTransform 비활성화 (vulkanEnablePreTransform: 1→0) — UI 180° 회전 버그 근본 원인. Vulkan이 디스플레이 회전을 사전 변환할 때 Canvas Overlay와 충돌해서 화면 전체 뒤집힘 |
+| 2026-04-30 | 스플래시 인트로 도입: Unity 기본 스플래시 OFF + Logo 프리팹/LogoIntro.cs로 직접 제어 (Logo→메인 Canvas 페이드 전환). Static Splash Image로 OS 차원 즉시 표시 → 단독 실행 시 콜드스타트 검은화면 제거 (커밋: 5a248fb) |
+| 2026-04-30 | Android 빌드 옵션 정리: Swappy 활성화, 자동회전 허용, BundleVersionCode 9, Shader Chunk 4MB. Android Logcat 패키지 추가 (디버깅용) |
