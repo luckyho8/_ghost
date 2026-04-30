@@ -953,17 +953,17 @@ PrefabInstance:
     - target: {fileID: 4604880315101652100, guid: 09d6763e0199d1c4f817359d798faf09,
         type: 3}
       propertyPath: m_AnchorMax.x
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4604880315101652100, guid: 09d6763e0199d1c4f817359d798faf09,
         type: 3}
       propertyPath: m_AnchorMax.y
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4604880315101652100, guid: 09d6763e0199d1c4f817359d798faf09,
         type: 3}
       propertyPath: m_SizeDelta.y
-      value: 0
+      value: -2094.2856
       objectReference: {fileID: 0}
     - target: {fileID: 4604880315101652100, guid: 09d6763e0199d1c4f817359d798faf09,
         type: 3}
@@ -994,6 +994,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Name
       value: Logo
+      objectReference: {fileID: 0}
+    - target: {fileID: 8932044762264234076, guid: 09d6763e0199d1c4f817359d798faf09,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
